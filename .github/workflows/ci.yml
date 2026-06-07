@@ -106,22 +106,28 @@ jobs:
           $errors = Test-AllToolsReportSchema -Report $report
           if ($errors.Count -gt 0) { throw ($errors -join "`n") }
 
-      - name: Validate Agent Teams Backlog Sync
+      - name: Validate Windows Operations Docs
         shell: pwsh
         run: |
-          $doc = Get-Content .\docs\common\08_AgentTeams対応表.md -Raw -Encoding UTF8
-          $tasks = Get-Content .\TASKS.md -Raw -Encoding UTF8
-          $requiredTerms = @('Agent Teams', 'MCP', 'Worktree', 'Backlog')
+          $docs = @{
+            'README.md' = Get-Content .\README.md -Raw -Encoding UTF8
+            'CLAUDE.md' = Get-Content .\CLAUDE.md -Raw -Encoding UTF8
+            'TASKS.md' = Get-Content .\TASKS.md -Raw -Encoding UTF8
+            'docs/WINDOWS-OPERATIONS.md' = Get-Content .\docs\WINDOWS-OPERATIONS.md -Raw -Encoding UTF8
+          }
+          $requiredTerms = @('Mission Control', 'Supervisor', 'Windows Task Scheduler', 'registered-projects.json')
           foreach ($term in $requiredTerms) {
-            if ($doc -notmatch [regex]::Escape($term)) { throw "対応表にキーワードがありません: $term" }
-            if ($tasks -notmatch [regex]::Escape($term)) { throw "TASKS.md にキーワードがありません: $term" }
+            $hit = $false
+            foreach ($value in $docs.Values) {
+              if ($value -match [regex]::Escape($term)) { $hit = $true; break }
+            }
+            if (-not $hit) { throw "Windows operations docs are missing keyword: $term" }
           }
 
       - name: Validate TASKS Tooling
         shell: pwsh
         run: |
           .\scripts\tools\Update-TASKS.ps1 -Action list | Out-Null
-          .\scripts\tools\Sync-AgentTeamsBacklog.ps1 -Action check
 
       - name: Validate TASKS.md Issue Sync Format
         shell: pwsh
