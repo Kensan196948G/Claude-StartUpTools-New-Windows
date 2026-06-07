@@ -137,27 +137,31 @@ jobs:
           Write-Host "state.schema.json validated: $($required.Count) required top-level fields"
 
       - name: Validate State Example Against Schema
-        shell: bash
+        shell: pwsh
         run: node scripts/validate-state-example.js
 
       - name: Check Doc Version Consistency
-        shell: bash
+        shell: pwsh
         run: node scripts/check-doc-versions.js
 
       - name: Check README Stats Up-to-date
-        shell: bash
+        shell: pwsh
         run: |
           node scripts/update-readme-stats.js
-          if ! git diff --quiet README.md; then
-            echo "::error::README.md の統計情報が古いです。ローカルで 'node scripts/update-readme-stats.js' を実行してコミットしてください。"
+          git diff --quiet README.md
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::README.md の統計情報が古いです。ローカルで 'node scripts/update-readme-stats.js' を実行してコミットしてください。"
             git diff README.md
             exit 1
-          fi
+          }
 
       - name: Markdown Lint
-        shell: bash
+        shell: pwsh
         run: |
-          npx --yes markdownlint-cli2 "docs/**/*.md" "README.md" "CHANGELOG.md" || echo "::warning::Markdown lint found issues (non-blocking)"
+          npx --yes markdownlint-cli2 "docs/**/*.md" "README.md" "CHANGELOG.md"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::warning::Markdown lint found issues (non-blocking)"
+          }
         continue-on-error: true
 
       - name: Check Legacy References
@@ -259,31 +263,3 @@ jobs:
             Write-Host "::notice::PSScriptAnalyzer: no warning-level issues"
           }
 
-  # ── Linux native CI (bash 移行: feat/linux-migration) ──────────────────────
-  shellcheck-and-bats:
-    name: ShellCheck + bats (Linux native)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install bats / shellcheck / jq
-        run: sudo apt-get update -qq && sudo apt-get install -y bats shellcheck jq
-
-      - name: ShellCheck (Error severity)
-        run: |
-          shopt -s nullglob
-          shellcheck -S error start.sh lib/*.sh bin/*.sh libexec/*.sh
-          echo "::notice::shellcheck: 0 error-level issues"
-
-      - name: bats (unit)
-        run: |
-          bats --formatter tap tests/bats/unit/ | tee reports-bats.tap
-          ok=$(grep -cE '^ok ' reports-bats.tap || echo 0)
-          echo "::notice::bats: ${ok} tests passed"
-
-      - name: Node validations (cross-platform 流用)
-        run: |
-          node scripts/validate-state-example.js
-          node scripts/check-doc-versions.js
-          node scripts/test/test-supervisor-smoke.js

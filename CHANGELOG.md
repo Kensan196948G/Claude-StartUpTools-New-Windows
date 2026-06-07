@@ -8,6 +8,21 @@
 > `AGENTS.md`, `config/config.json.template`, and
 > `docs/windows-migration-audit.md`.
 
+## [v4.0.0] - 2026-06-07 — Windows native fork release candidate baseline
+
+### Summary
+
+- New GitHub repository: `Kensan196948G/Claude-StartUpTools-New-Windows`.
+- Active execution path is Windows native: PowerShell, Node.js, Windows Task
+  Scheduler, D-drive Project Registry, Supervisor, and Mission Control.
+- SSH/Linux/tmux/bash runtime assets are isolated under `legacy-linux/`.
+- `registered-project-autonomy` supervises all registered projects with
+  per-project stop reasons, cooldowns, failure counters, and restart limits.
+- Mission Control exposes D-drive candidates, registered projects, Supervisor
+  targets, GitHub links, and AutoRun state.
+- Release gate is Pester + Node smoke + PSScriptAnalyzer + browser
+  Mission Control console error check.
+
 ## [v3.4.9] - 2026-06-04 — 全プロセス統合 Supervisor daemon 新設 + Windows ローカル一本化完全移行
 
 ### 🎯 概要

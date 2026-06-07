@@ -8,6 +8,13 @@ model. Legacy Linux assets are kept under `legacy-linux/` only for reference.
 
 ## Windows Operating Model
 
+| 項目 | 現行値 |
+|---|---|
+| バージョン | **v4.0.0** |
+| Agents | **44体** |
+| Commands | **42コマンド** |
+| Release mode | Windows native / human final decision |
+
 ```mermaid
 flowchart LR
     D["D:\\ project folders"] --> Scan["Project candidate scan"]
