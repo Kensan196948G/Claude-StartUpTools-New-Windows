@@ -105,6 +105,7 @@ release automatically.
 | [v1.0.0-rc.1-release-notes.md](docs/v1.0.0-rc.1-release-notes.md) | Release candidate notes |
 | [rc-real-machine-verification.md](docs/rc-real-machine-verification.md) | Clean Windows and real project verification |
 | [human-final-release-gate.md](docs/human-final-release-gate.md) | Human-only final tag/release checklist |
+| [final-release-handoff.md](docs/final-release-handoff.md) | Final human-only release commands |
 
 See [docs/WINDOWS-OPERATIONS.md](docs/WINDOWS-OPERATIONS.md) for the Windows
 architecture and registry format. See

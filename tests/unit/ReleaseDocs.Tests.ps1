@@ -31,6 +31,14 @@ Describe 'Release candidate documentation' {
     It 'RC release notes state that final release publication is human-only' {
         $text = Get-Content (Join-Path $script:DocsRoot 'v1.0.0-rc.1-release-notes.md') -Raw -Encoding UTF8
         $text | Should -Match 'human-only final actions'
-        $text | Should -Match 'CI run `27080036641`'
+        $text | Should -Match 'CI run `27080265804`'
+    }
+
+    It 'final handoff keeps release commands human-only' {
+        $text = Get-Content (Join-Path $script:DocsRoot 'final-release-handoff.md') -Raw -Encoding UTF8
+        $text | Should -Match '0f2ca45'
+        $text | Should -Match '27080265804'
+        $text | Should -Match 'git tag v1\.0\.0'
+        $text | Should -Match 'gh release create v1\.0\.0'
     }
 }

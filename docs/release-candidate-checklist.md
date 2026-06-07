@@ -15,7 +15,7 @@ security exceptions, GitHub Projects final Done status, and release tagging.
 | Mission Control | Browser console error 0 | Verified at `http://127.0.0.1:3737/mission-control` |
 | Project Registry | D-drive candidates visible | `/api/data.registrySummary` returned candidates and GitHub links |
 | Supervisor | Registered-project autonomy visible | Supervisor tab verified with Windows Task Scheduler hint |
-| CI | GitHub Actions green | `27080036641` passed on 2026-06-07 for HEAD `40895a2` |
+| CI | GitHub Actions green | `27080265804` passed on 2026-06-07 for HEAD `0f2ca45` |
 
 ## Release Documents
 
@@ -24,6 +24,7 @@ security exceptions, GitHub Projects final Done status, and release tagging.
 | `docs/v1.0.0-rc.1-release-notes.md` | RC summary, scope, known limits, and final release boundary |
 | `docs/rc-real-machine-verification.md` | Clean Windows and real D-drive verification procedure |
 | `docs/human-final-release-gate.md` | Human-only final decision checklist for tag and GitHub Release |
+| `docs/final-release-handoff.md` | Final handoff and exact human-only release commands |
 
 ## Windows Setup Check
 
