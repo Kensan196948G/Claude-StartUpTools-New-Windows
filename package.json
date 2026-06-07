@@ -1,0 +1,37 @@
+{
+  "name": "claude-startup-tools-windows",
+  "version": "4.0.0-windows",
+  "description": "Claude autonomous development startup tools for Windows — D drive project registry + Mission Control WebUI",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node scripts/dashboards/serve-dashboard.js",
+    "start:dashboard": "node scripts/dashboards/serve-dashboard.js --port 3737",
+    "start:watch": "node scripts/dashboards/watch-and-run.js",
+    "test": "npm run test:pester && npm run test:node",
+    "test:node": "node scripts/test/test-supervisor-smoke.js",
+    "test:pester": "pwsh -NonInteractive -Command \"$cfg=New-PesterConfiguration;$cfg.Run.Path='./tests/unit';$cfg.Run.Exit=$false;$cfg.Output.Verbosity='Normal';Invoke-Pester -Configuration $cfg\"",
+    "lint": "npm run lint:pester",
+    "lint:pester": "pwsh -NonInteractive -Command \"Invoke-ScriptAnalyzer -Path scripts -Recurse -Severity Error | Format-Table -AutoSize\"",
+    "audit:scan": "node scripts/tools/run-audit-scan.js",
+    "cmdb:scan": "node scripts/tools/run-cmdb-scan.js"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": [
+    "claude-code",
+    "autonomous-development",
+    "claudeos",
+    "dashboard",
+    "mission-control"
+  ],
+  "author": "Kensan (Enterprise IT Team)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kensan196948G/Claude-StartUpTools-New-Windows.git"
+  },
+  "homepage": "http://localhost:3737/mission-control"
+}

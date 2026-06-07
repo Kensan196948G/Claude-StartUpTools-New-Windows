@@ -1,0 +1,149 @@
+{
+  "_comment": "Claude StartUpTools Windows 設定テンプレート - コピーしてconfig.jsonとして使用",
+  "version": "4.0.0-windows",
+  "projectsDir": "D:\\",
+  "localExcludes": [
+    "$RECYCLE.BIN",
+    "System Volume Information",
+    "Claude-StartUpTools-New-Windows"
+  ],
+  "projectRegistry": {
+    "_comment": "Dドライブ直下の候補を登録プロジェクトとして管理するWindows版の正本。",
+    "enabled": true,
+    "registryFile": "%USERPROFILE%\\.claudeos\\registered-projects.json",
+    "includeGitOnly": false,
+    "autoApplySupervisor": true
+  },
+  "tools": {
+    "defaultTool": "claude",
+    "claude": {
+      "enabled": true,
+      "displayName": "Claude Code (Anthropic)",
+      "command": "claude",
+      "args": [
+        "--dangerously-skip-permissions"
+      ],
+      "installCommand": "npm install -g @anthropic-ai/claude-code",
+      "checkCommand": "claude --version",
+      "env": {
+        "ENABLE_TOOL_SEARCH": "true",
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+        "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50",
+        "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION": "true"
+      },
+      "settings": {
+        "language": "日本語",
+        "outputStyle": "Explanatory",
+        "alwaysThinkingEnabled": true,
+        "spinnerTipsEnabled": true,
+        "prefersReducedMotion": false,
+        "promptSuggestionEnabled": true,
+        "respectGitignore": true,
+        "autoUpdatesChannel": "latest",
+        "includeCoAuthoredBy": true
+      },
+      "apiKeyEnvVar": "ANTHROPIC_API_KEY"
+    },
+    "codex": {
+      "enabled": false,
+      "_disabled_reason": "v3.1.0 で Codex CLI 連携は廃止。将来復活の保険としてフィールドは保持。",
+      "displayName": "Codex CLI (OpenAI)",
+      "command": "codex",
+      "args": [
+        "--full-auto"
+      ],
+      "installCommand": "npm install -g @openai/codex",
+      "checkCommand": "codex --version",
+      "env": {
+        "OPENAI_API_KEY": ""
+      },
+      "apiKeyEnvVar": "OPENAI_API_KEY"
+    },
+    "copilot": {
+      "enabled": false,
+      "_disabled_reason": "v3.1.0 で Copilot CLI 連携は廃止。将来復活の保険としてフィールドは保持。",
+      "displayName": "GitHub Copilot CLI",
+      "command": "copilot",
+      "args": [
+        "--yolo"
+      ],
+      "installCommand": "npm install -g @github/copilot",
+      "checkCommand": "copilot --version",
+      "env": {},
+      "apiKeyEnvVar": ""
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "logDir": "logs",
+    "logPrefix": "ai-startup",
+    "successKeepDays": 30,
+    "failureKeepDays": 90
+  },
+  "backupConfig": {
+    "enabled": true,
+    "backupDir": "config/backups",
+    "maxBackups": 10,
+    "maskSensitive": true,
+    "sensitiveKeys": [
+      "tools.claude.env.ANTHROPIC_API_KEY",
+      "tools.codex.env.OPENAI_API_KEY"
+    ]
+  },
+  "recentProjects": {
+    "enabled": true,
+    "maxHistory": 10,
+    "historyFile": "%USERPROFILE%\\.ai-startup\\recent-projects.json"
+  },
+  "notifications": {
+    "_comment": "Windows Terminal 通知音設定。soundEnabled:false で無効化できます。",
+    "soundEnabled": true,
+    "playOnStart": true,
+    "playOnExit": true,
+    "sounds": {
+      "claude":  "D:\\アラートサウンドデザイン＃01.mp3",
+      "codex":   "D:\\アラートサウンドデザイン＃01.mp3",
+      "copilot": "D:\\アラートサウンドデザイン＃01.mp3"
+    }
+  },
+  "cron": {
+    "_comment": "Windows版では互換名として残す。実体は Windows Task Scheduler + Start-ClaudeAutoTimeout.ps1。",
+    "enabled": true,
+    "defaultDurationMinutes": 300,
+    "launcherPath": "scripts\\main\\Start-ClaudeAutoTimeout.ps1",
+    "sessionsDir": "%USERPROFILE%\\.claudeos\\sessions",
+    "logsDir": "%USERPROFILE%\\.claudeos\\logs",
+    "entryPrefix": "CLAUDEOS-WIN"
+  },
+  "email": {
+    "_comment": "Windows版の将来拡張。SMTP認証情報は環境変数で管理し、config.jsonには書かない。",
+    "enabled": false,
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "useStartTls": true,
+      "userEnvVar": "CLAUDEOS_SMTP_USER",
+      "passEnvVar": "CLAUDEOS_SMTP_PASS"
+    },
+    "from": "<your-email>",
+    "to": "<your-email>",
+    "subjectPrefix": "[ClaudeOS]",
+    "scriptPath": "%USERPROFILE%\\.claudeos\\report-and-mail.py",
+    "enableEnvVar": "CLAUDEOS_EMAIL_ENABLED"
+  },
+  "sessionTabs": {
+    "_comment": "v3.1.0 新設。Windows Terminal に情報タブを 1 枚追加し、開始/終了/残り時間をリアルタイム表示する。",
+    "enabled": true,
+    "title": "Claude Session Info",
+    "pollIntervalSeconds": 1,
+    "autoCloseAfterExitSeconds": 10,
+    "localSessionsDir": "%USERPROFILE%\\.claudeos\\sessions"
+  },
+  "statusline": {
+    "_comment": "Windows側のグローバル statusLine 設定。",
+    "enabled": true,
+    "sourceSettingsPath": "%USERPROFILE%\\.claude\\settings.json",
+    "remoteSettingsPath": "%USERPROFILE%\\.claude\\settings.json",
+    "backupBeforeApply": true
+  }
+}

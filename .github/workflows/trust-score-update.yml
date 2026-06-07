@@ -1,0 +1,144 @@
+name: Trust Score Update
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+jobs:
+  update-trust-score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Calculate and update Trust Score
+        env:
+          CI_OUTCOME: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          TRUST_FILE = ".claude/claudeos/data/trust-score.json"
+
+          # Read or initialize
+          try:
+              with open(TRUST_FILE) as f:
+                  trust = json.load(f)
+          except Exception:
+              trust = {
+                  "schema_version": "1.0",
+                  "description": "ClaudeOS Trust Ledger — CI実績に基づく自律判断範囲スコア",
+                  "score": 0.0,
+                  "level": 1,
+                  "auto_merge_enabled": False,
+                  "history": {
+                      "total_ci_runs": 0,
+                      "successful_ci_runs": 0,
+                      "ci_success_streak": 0,
+                      "blocked_events": 0,
+                      "last_ci_outcome": "",
+                      "last_updated": ""
+                  }
+              }
+
+          outcome = os.environ.get("CI_OUTCOME", "failure")
+          now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          h = trust.setdefault("history", {})
+          h["total_ci_runs"]     = h.get("total_ci_runs", 0) + 1
+          h["last_ci_outcome"]   = outcome
+          h["last_updated"]      = now
+
+          if outcome == "success":
+              h["successful_ci_runs"]  = h.get("successful_ci_runs", 0) + 1
+              h["ci_success_streak"]   = h.get("ci_success_streak", 0) + 1
+          else:
+              h["ci_success_streak"] = 0
+
+          # Trust Score 計算式（trust-ledger.md 準拠）
+          total   = h["total_ci_runs"]
+          success = h.get("successful_ci_runs", 0)
+          streak  = h.get("ci_success_streak", 0)
+          blocked = h.get("blocked_events", 0)
+
+          base_score    = (success / total) * 0.5 if total > 0 else 0.0
+          streak_bonus  = min(streak / 10, 1.0) * 0.1
+          block_penalty = min(blocked * 0.05, 0.2)
+          score = max(0.0, min(1.0, base_score + streak_bonus - block_penalty))
+
+          level = 3 if score >= 0.87 else 2 if score >= 0.75 else 1
+
+          trust["updated_at"]        = now
+          trust["score"]             = round(score, 4)
+          trust["level"]             = level
+          trust["auto_merge_enabled"] = score >= 0.75
+          trust["history"]           = h
+
+          with open(TRUST_FILE, "w", encoding="utf-8") as f:
+              json.dump(trust, f, indent=2, ensure_ascii=False)
+
+          print(f"[Trust Score] outcome={outcome} score={score:.4f} level={level} streak={streak}")
+          EOF
+
+      - name: Output trust score to Job Summary
+        run: |
+          OUTCOME="${{ github.event.workflow_run.conclusion }}"
+          python3 - <<'PYEOF'
+          import json, os
+
+          TRUST_FILE = ".claude/claudeos/data/trust-score.json"
+          outcome = os.environ.get("CI_OUTCOME", "unknown")
+
+          try:
+              with open(TRUST_FILE) as f:
+                  trust = json.load(f)
+          except Exception:
+              trust = {"score": 0, "level": 1, "auto_merge_enabled": False, "history": {}}
+
+          score  = trust.get("score", 0)
+          level  = trust.get("level", 1)
+          h      = trust.get("history", {})
+          streak = h.get("ci_success_streak", 0)
+          stable = h.get("stable_achievements", 0)
+          total_sess = h.get("total_sessions", 0)
+          blocked    = h.get("blocked_events", 0)
+          auto_merge = trust.get("auto_merge_enabled", False)
+
+          pct     = round(score * 100, 2)
+          lv_icon = "🟢" if level >= 3 else "🟡" if level >= 2 else "🔴"
+          bar_n   = round(score * 20)
+          bar     = "█" * bar_n + "░" * (20 - bar_n)
+
+          # GitHub Step Summary に出力
+          summary_file = os.environ.get("GITHUB_STEP_SUMMARY", "")
+          lines = [
+              "## 🛡️ Trust Ledger — CI Result",
+              "",
+              f"| 項目 | 値 |",
+              f"|---|---|",
+              f"| CI 結果 | `{outcome}` |",
+              f"| Trust Score | `[{bar}] {pct}%` |",
+              f"| Trust Level | `Level {level}` {lv_icon} |",
+              f"| Auto Merge | {'✅ 有効' if auto_merge else '⏸ 無効'} |",
+              f"| CI 連続成功 | `{streak}` 回 |",
+              f"| STABLE 達成 | `{stable}/{total_sess}` セッション |",
+              f"| Blocked 件数 | `{blocked}` 件 |",
+              "",
+              "> trust-score.json はセッション終了時に session-end.js hook が自動更新します。",
+          ]
+          if summary_file:
+              with open(summary_file, "a", encoding="utf-8") as f:
+                  f.write("\n".join(lines) + "\n")
+
+          print(f"[Trust Score] outcome={outcome} score={pct}% level={level} {lv_icon} streak={streak}")
+          PYEOF
+        env:
+          CI_OUTCOME: ${{ github.event.workflow_run.conclusion }}

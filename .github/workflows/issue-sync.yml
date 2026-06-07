@@ -1,0 +1,72 @@
+name: Issue Sync
+
+on:
+  # Auto-trigger on issue events disabled: GitHub Actions cannot create or approve PRs in this repo.
+  # Issues are tracked directly in GitHub Issues. Run manually via workflow_dispatch only if needed.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-issues-to-tasks:
+    runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync GitHub Issues to TASKS.md
+        shell: pwsh
+        run: |
+          .\scripts\tools\Sync-Issues.ps1 -Action sync
+
+      - name: Validate TASKS.md format
+        shell: pwsh
+        run: |
+          .\scripts\tools\Sync-Issues.ps1 -Action check
+
+      - name: Commit and open PR if changed
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          $status = git status --porcelain TASKS.md
+          if (-not $status) {
+            Write-Host "TASKS.md is already up to date." -ForegroundColor Green
+            exit 0
+          }
+
+          # Create a unique branch for this sync update
+          $sha = (git rev-parse --short HEAD)
+          $branch = "auto/tasks-sync-$sha"
+
+          # Skip if a PR branch for this commit already exists
+          $existing = gh pr list --head $branch --state open --json number | ConvertFrom-Json
+          if ($existing.Count -gt 0) {
+            Write-Host "PR already exists for branch $branch, skipping." -ForegroundColor Yellow
+            exit 0
+          }
+
+          git checkout -b $branch
+          git add TASKS.md
+          git commit -m "chore: auto-sync GitHub Issues to TASKS.md [skip ci]"
+          git push origin $branch
+
+          gh pr create `
+            --title "chore: auto-sync GitHub Issues to TASKS.md" `
+            --body "Automated TASKS.md sync triggered by issue event. Merges automatically after CI passes." `
+            --base main `
+            --head $branch
+
+          # Enable auto-merge so the PR merges once branch protection is satisfied
+          gh pr merge --auto --squash $branch
+
+          Write-Host "TASKS.md sync PR created and auto-merge enabled." -ForegroundColor Green
