@@ -32,6 +32,18 @@ flowchart LR
 | Process supervisor | `supervisor-daemon.js` via `Register-SupervisorTask.ps1` |
 | Dashboard | `npm run start:dashboard` or menu `MC` |
 
+## Mission Control
+
+Mission Control is the Windows control-tower view at
+`http://127.0.0.1:3737/mission-control`.
+
+| Panel | Windows release signal |
+|---|---|
+| Projects | D-drive candidates, registered projects, Supervisor targets, GitHub links, and AutoRun state |
+| Supervisor | Daemon status, Windows Task Scheduler hint, and registered-project autonomy state |
+| Jobs | Read-only diagnostics plus confirmed Windows management jobs |
+| Health | Task Scheduler, auth, source-of-truth drift, and release-readiness checks |
+
 ## Quick Start
 
 1. Copy `config/config.json.template` to `config/config.json`.

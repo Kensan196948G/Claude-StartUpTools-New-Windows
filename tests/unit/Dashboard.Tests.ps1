@@ -87,6 +87,58 @@ console.log(JSON.stringify(buildTimeline(p)));
     }
 }
 
+Describe 'Project Registry summary ロジック' {
+    BeforeAll {
+        if (-not $script:NodeExe) { return }
+        $tmpJs = Join-Path $TestDrive 'registry-summary-test.js'
+        $dashJsEscaped = $script:DashJs.Replace('\', '\\')
+        @"
+const {buildProjectRegistrySummary} = require('$dashJsEscaped');
+const summary = buildProjectRegistrySummary([
+  { name:'CandidateOnly', isCandidate:true, isRegistered:false, hasGithub:false, hasCron:false, supervisorEnabled:true },
+  { name:'Registered', isCandidate:false, isRegistered:true, hasGithub:true, hasCron:false, supervisorEnabled:true },
+  { name:'AutoRun', isCandidate:false, isRegistered:true, hasGithub:true, hasCron:true, supervisorEnabled:false }
+]);
+console.log(JSON.stringify(summary));
+"@ | Set-Content $tmpJs -Encoding UTF8
+        $script:RegistrySummary = & $script:NodeExe $tmpJs 2>$null | ConvertFrom-Json
+    }
+
+    It 'Dドライブ候補数を集計できること' {
+        if (-not $script:NodeExe) { Set-ItResult -Skipped -Because 'node not available' }
+        $script:RegistrySummary.candidates | Should -Be 1
+    }
+    It '登録済みとSupervisor対象を分けて集計できること' {
+        if (-not $script:NodeExe) { Set-ItResult -Skipped -Because 'node not available' }
+        $script:RegistrySummary.registered | Should -Be 2
+        $script:RegistrySummary.supervisorEnabled | Should -Be 1
+    }
+    It 'GitHub紐付け済みとAutoRun登録済みを集計できること' {
+        if (-not $script:NodeExe) { Set-ItResult -Skipped -Because 'node not available' }
+        $script:RegistrySummary.githubLinked | Should -Be 2
+        $script:RegistrySummary.autorunRegistered | Should -Be 1
+    }
+}
+
+Describe 'Mission Control Windows visible wording' {
+    BeforeAll {
+        $script:MissionControlHtml = Join-Path $script:RepoRoot 'scripts\dashboards\mission-control.html'
+        $script:MissionControlText = Get-Content $script:MissionControlHtml -Raw
+    }
+
+    It 'Mission Control HTML が存在すること' {
+        Test-Path $script:MissionControlHtml | Should -BeTrue
+    }
+    It '表示文言に Linux 実行系の語を含めないこと' {
+        $script:MissionControlText | Should -Not -Match 'Linux cron|crontab|systemd|tmux'
+    }
+    It 'Windows版の登録プロジェクト可視化ラベルを含むこと' {
+        $script:MissionControlText | Should -Match 'Dドライブ候補'
+        $script:MissionControlText | Should -Match 'Supervisor対象'
+        $script:MissionControlText | Should -Match 'GitHub紐付け'
+    }
+}
+
 Describe 'getRegisteredProjects フィルタ' {
     BeforeAll {
         if (-not $script:NodeExe) { return }

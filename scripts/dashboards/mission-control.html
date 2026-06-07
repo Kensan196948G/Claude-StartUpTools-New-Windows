@@ -615,6 +615,8 @@ const ProjRowFull = ({ p }) => {
         <div style={{ fontWeight:700, fontSize:13, color:MC.text, marginBottom:3 }}>{p.name}</div>
         <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:4 }}>
           {p.hasWindows && <Tag color={MC.green} bg={MC.green+"18"}>🪟 Windows</Tag>}
+          {p.isRegistered && <Tag color={MC.accent} bg={MC.accent+"18"}>Registry</Tag>}
+          {p.supervisorEnabled && <Tag color={MC.cyan} bg={MC.cyan+"15"}>Supervisor</Tag>}
           {p.hasCron   && <Tag color={MC.amber}  bg={MC.amber+"18"}>⏰ AutoRun</Tag>}
           {p.hasGithub && <Tag color={p.githubPrivate ? MC.textMuted : MC.green}>{p.githubPrivate ? "Private" : "Public"}</Tag>}
           {p.githubLanguage && <Tag color={MC.purple}>{p.githubLanguage}</Tag>}
@@ -661,6 +663,9 @@ const ProjRowSimple = ({ p }) => {
         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <span style={{ fontWeight:600, fontSize:12, color:MC.text }}>{p.name}</span>
           {p.hasWindows && <Tag color={MC.cyan} bg={MC.cyan+"15"}>🪟</Tag>}
+          {p.isCandidate && <Tag color={MC.amber} bg={MC.amber+"15"}>候補</Tag>}
+          {p.isRegistered && <Tag color={MC.accent} bg={MC.accent+"18"}>登録済み</Tag>}
+          {p.supervisorEnabled && <Tag color={MC.cyan} bg={MC.cyan+"15"}>Supervisor</Tag>}
           {p.hasGithub && <Tag color={p.githubPrivate ? MC.textMuted : MC.green}>{p.githubPrivate ? "Private" : "Public"}</Tag>}
           {p.githubLanguage && <Tag color={MC.purple}>{p.githubLanguage}</Tag>}
           {p.githubUrl && (
@@ -702,12 +707,19 @@ const ProjectsPanel = () => {
   }, [fetchData]);
 
   const all    = projData.projects;
+  const summary = projData.registrySummary || {};
   const cronPs = all.filter(p => p.hasCron);
   const otherPs= all.filter(p => !p.hasCron);
+  const candidatePs = all.filter(p => p.isCandidate);
+  const registeredPs = all.filter(p => p.isRegistered);
+  const supervisorPs = all.filter(p => p.isRegistered && p.supervisorEnabled !== false);
   const displayed =
     filter==="cron"   ? cronPs :
     filter==="other"  ? otherPs :
     filter==="windows" ? all.filter(p => p.hasWindows) :
+    filter==="candidates" ? candidatePs :
+    filter==="registered" ? registeredPs :
+    filter==="supervisor" ? supervisorPs :
     filter==="github" ? all.filter(p => p.hasGithub) :
     cronPs; // "all" でもデフォルトは AutoRun 登録済みのみ（簡易表示は "other" フィルタで別途表示）
 
@@ -727,11 +739,12 @@ const ProjectsPanel = () => {
       {/* ── Stats & filter bar ── */}
       <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
         {[
-          { label:"全プロジェクト", v:all.length,                              c:MC.accent,  id:"all"   },
-          { label:"AutoRun 稼働中", v:cronPs.length,                           c:MC.green,   id:"cron"  },
-          { label:"簡易表示",      v:otherPs.length,                          c:MC.textMuted,id:"other" },
-          { label:"Windows",       v:all.filter(p=>p.hasWindows).length,      c:MC.cyan,    id:"windows" },
-          { label:"GitHub",        v:all.filter(p=>p.hasGithub).length,       c:MC.purple,  id:"github" },
+          { label:"全プロジェクト", v:summary.total ?? all.length,                 c:MC.accent,  id:"all"   },
+          { label:"Dドライブ候補", v:summary.candidates ?? candidatePs.length,    c:MC.amber,   id:"candidates" },
+          { label:"登録済み",      v:summary.registered ?? registeredPs.length,   c:MC.green,   id:"registered" },
+          { label:"Supervisor対象", v:summary.supervisorEnabled ?? supervisorPs.length, c:MC.cyan, id:"supervisor" },
+          { label:"GitHub紐付け",  v:summary.githubLinked ?? all.filter(p=>p.hasGithub).length, c:MC.purple, id:"github" },
+          { label:"AutoRun",       v:summary.autorunRegistered ?? cronPs.length,  c:MC.textMuted,id:"cron"  },
         ].map(({ label, v, c, id }) => (
           <div key={label}
             onClick={id ? () => setFilter(f => f===id ? "all" : id) : undefined}
@@ -749,6 +762,7 @@ const ProjectsPanel = () => {
           {projData.generated && (
             <span style={{ fontSize:10, fontFamily:MC.mono, color:MC.textMuted }}>
               更新: {new Date(projData.generated).toLocaleTimeString("ja-JP")} (30秒更新)
+              {summary.projectsDir ? ` / projectsDir: ${summary.projectsDir}` : ""}
             </span>
           )}
           <button onClick={fetchData} style={{ padding:"5px 10px", borderRadius:4, border:`1px solid ${MC.border}`, background:"transparent", color:MC.textMuted, fontSize:10, cursor:"pointer" }}>↻ 更新</button>
@@ -1807,7 +1821,7 @@ function CronRegisterModal({ onClose, onRegistered }) {
     if (!form.project.trim()) { setError('プロジェクト名は必須です'); return; }
     setSaving(true); setError('');
     try {
-      const r = await fetch('/api/cron', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+      const r = await fetch('/api/autorun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
       const d = await r.json();
       if (!r.ok) { setError(d.error || 'Error'); setSaving(false); return; }
       onRegistered(d.entry);
@@ -1864,7 +1878,7 @@ const CronPanel = ({ liveData }) => {
 
   // /api/cron からリアルデータを取得（30秒ポーリング）
   React.useEffect(() => {
-    const load = () => fetch('/api/cron').then(r => r.json()).then(d => {
+    const load = () => fetch('/api/autorun').then(r => r.json()).then(d => {
       if (d.entries?.length) {
         setSchedules(d.entries.map(e => ({
           project: e.project,
@@ -1888,7 +1902,7 @@ const CronPanel = ({ liveData }) => {
   }, [liveData?.cronSchedules]);
 
   const handleDelete = async (id, project) => {
-    const r = await fetch(`/api/cron/${id}`, { method:'DELETE' });
+    const r = await fetch(`/api/autorun/${id}`, { method:'DELETE' });
     if (r.ok) {
       setSchedules(prev => prev.filter(s => s._id !== id));
       setDelConfirm(null);
@@ -2526,7 +2540,10 @@ window.LogPanel = LogPanel;
 const STATUS_COLOR = {
   running:  '#00d4ff',
   starting: '#a78bfa',
+  waiting:  '#60a5fa',
   cooldown: '#fbbf24',
+  'goal-reached': '#22c55e',
+  blocked:  '#ff6b6b',
   stale:    '#fbbf24',
   idle:     '#6b7280',
   stopped:  '#6b7280',
@@ -2537,6 +2554,8 @@ const STATUS_COLOR = {
 
 const SupervisorPanel = ({ supervisorData }) => {
   const procs = supervisorData?.processes ? Object.values(supervisorData.processes) : [];
+  const autonomy = procs.find(p => p.id === 'registered-project-autonomy' || p.type === 'registered-project-autonomy');
+  const projectRows = autonomy?.projects ? Object.values(autonomy.projects) : [];
   const isRunning = supervisorData?.running === true;
   const generated = supervisorData?.generated;
 
@@ -2606,6 +2625,43 @@ const SupervisorPanel = ({ supervisorData }) => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {projectRows.length > 0 && (
+        <div style={{ marginTop:14 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
+            <span style={{ color:'#e5e7eb', fontWeight:700, fontSize:12 }}>登録プロジェクト自律再開</span>
+            <Tag color={MC.cyan}>対象 {projectRows.length}</Tag>
+            <Tag color={MC.green}>実行中 {autonomy?.runningCount ?? 0}/{autonomy?.maxConcurrent ?? '—'}</Tag>
+            <Tag color={MC.amber}>Cooldown {autonomy?.restartCooldownMinutes ?? '—'}分</Tag>
+            <Tag color={MC.purple}>上限 {autonomy?.maxRestartsPerProject ?? '—'}回</Tag>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ borderBottom:`1px solid ${MC.border}` }}>
+                  {['プロジェクト', '状態', '理由', 'PID', '再開', '失敗', '最終終了', '次回'].map(h => (
+                    <th key={h} style={{ padding:'6px 10px', textAlign:'left', color:'#9ca3af', fontWeight:600, whiteSpace:'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {projectRows.map(p => (
+                  <tr key={p.name} style={{ borderBottom:`1px solid ${MC.border}18` }}>
+                    <td style={{ padding:'7px 10px', color:'#e5e7eb', fontWeight:600, maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.path}>{p.name}</td>
+                    <td style={{ padding:'7px 10px' }}><StatusBadge status={p.status} /></td>
+                    <td style={{ padding:'7px 10px', color:'#9ca3af', fontFamily:'monospace', maxWidth:210, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.reason || '—'}</td>
+                    <td style={{ padding:'7px 10px', color:'#9ca3af', fontFamily:'monospace' }}>{p.pid || '—'}</td>
+                    <td style={{ padding:'7px 10px', color:'#9ca3af', textAlign:'center' }}>{p.restartCount ?? 0}</td>
+                    <td style={{ padding:'7px 10px', color:(p.failureCount||0) > 0 ? '#fbbf24' : '#9ca3af', textAlign:'center' }}>{p.failureCount ?? 0}</td>
+                    <td style={{ padding:'7px 10px', color:'#9ca3af', whiteSpace:'nowrap' }}>{fmtTime(p.lastExitAt)}</td>
+                    <td style={{ padding:'7px 10px', color:'#9ca3af', whiteSpace:'nowrap' }}>{fmtTime(p.nextRetryAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

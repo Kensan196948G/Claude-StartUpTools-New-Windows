@@ -308,6 +308,7 @@ function getAllProjects() {
       return {
         project:           name,
         hasWindows:        !!local,
+        isCandidate:       !!local && !regEntry,
         isRegistered:      !!regEntry,
         localPath:         regEntry?.path || local?.path || path.join(PROJECTS_DIR, name),
         hasGithub:         !!(ghInfo?.url),
@@ -327,6 +328,20 @@ function getAllProjects() {
         durationMinutes:   regEntry?.durationMinutes || cronEntry?.duration || 300,
       };
     });
+}
+
+function buildProjectRegistrySummary(projects) {
+  const list = Array.isArray(projects) ? projects : [];
+  return {
+    projectsDir: PROJECTS_DIR,
+    registryFile: process.env.AI_STARTUP_PROJECT_REGISTRY || PROJECT_REG,
+    total: list.length,
+    candidates: list.filter(p => p.isCandidate).length,
+    registered: list.filter(p => p.isRegistered).length,
+    supervisorEnabled: list.filter(p => p.isRegistered && p.supervisorEnabled !== false).length,
+    githubLinked: list.filter(p => p.hasGithub).length,
+    autorunRegistered: list.filter(p => p.hasCron).length,
+  };
 }
 
 // 後方互換: テスト等から参照される旧関数
@@ -425,6 +440,7 @@ function buildProjectData(entry) {
   return {
     name:               entry.project,
     hasWindows:         entry.hasWindows         || false,
+    isCandidate:        entry.isCandidate        || false,
     isRegistered:       entry.isRegistered       || false,
     localPath:          entry.localPath          || '',
     hasGithub:          entry.hasGithub          || false,
@@ -1070,9 +1086,10 @@ function getAgentAndEventData() {
 function handleApiData(res) {
   try {
     const projects = getAllProjects().map(buildProjectData);
+    const registrySummary = buildProjectRegistrySummary(projects);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8',
                          'Cache-Control': 'no-cache' });
-    res.end(JSON.stringify({ projects, generated: new Date().toISOString() }, null, 2));
+    res.end(JSON.stringify({ projects, registrySummary, generated: new Date().toISOString() }, null, 2));
   } catch (e) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: e.message }));
@@ -1597,7 +1614,7 @@ function watchFiles() {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { getAllProjects, getRegisteredProjects, buildProjectData, buildTimeline, weeksToPhase };
+  module.exports = { getAllProjects, getRegisteredProjects, buildProjectData, buildProjectRegistrySummary, buildTimeline, weeksToPhase };
 }
 
 // Start server only when run directly (not when required by tests)
@@ -1667,7 +1684,13 @@ if (require.main === module) {
     if (pn === '/api/events')                         { return handleSSE(req, res); }
     if (pn === '/api/system-health')                  { return handleSystemHealth(res); }
     if (pn === '/api/supervisor/status')              { return handleSupervisorStatus(res); }
-    // Cron registry CRUD
+    // AutoRun registry CRUD. /api/cron remains as a compatibility alias.
+    if (req.method === 'GET'    && pn === '/api/autorun') { return handleCronList(res); }
+    if (req.method === 'POST'   && pn === '/api/autorun') { return handleCronRegister(req, res); }
+    if (req.method === 'DELETE' && pn.startsWith('/api/autorun/')) {
+      const id = pn.replace('/api/autorun/', '');
+      return handleCronDelete(req, res, id);
+    }
     if (req.method === 'GET'    && pn === '/api/cron') { return handleCronList(res); }
     if (req.method === 'POST'   && pn === '/api/cron') { return handleCronRegister(req, res); }
     if (req.method === 'DELETE' && pn.startsWith('/api/cron/')) {

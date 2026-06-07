@@ -92,6 +92,30 @@ Safety controls:
 Each project entry includes `restartCount`, `failureCount`, `lastExitCode`,
 `lastExitSignal`, `lastExitAt`, `reason`, and `nextRetryAt` where applicable.
 
+## Mission Control
+
+Start the dashboard and open Mission Control:
+
+```powershell
+npm run start:dashboard
+```
+
+```text
+http://127.0.0.1:3737/mission-control
+```
+
+Windows release checks:
+
+| Area | Visible check |
+|---|---|
+| Projects | D-drive candidates, registered projects, Supervisor targets, GitHub-linked projects, and AutoRun count |
+| Supervisor | Daemon running/stopped banner plus registered-project autonomy table when state is available |
+| Jobs | Windows diagnostics and confirmed Task Scheduler/registry management jobs |
+| Health | Task Scheduler, auth, source-of-truth drift, server uptime, and release-readiness signals |
+
+`/api/autorun` is the Windows-facing schedule endpoint. `/api/cron` remains as a
+compatibility alias for older tests and local data files.
+
 ## Legacy Linux
 
 The old bash/tmux/Linux cron runtime is stored under `legacy-linux/`. It is not
