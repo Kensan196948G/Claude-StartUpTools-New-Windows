@@ -94,6 +94,87 @@ async function run() {
   // ── Cleanup ────────────────────────────────────────────────────────────────
   fs.rmSync(tmpDir, { recursive: true, force: true });
 
+  // ── registered-project-autonomy: stable projects must not be restarted ────
+  const autoTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sup-auto-smoke-'));
+  const projectDir = path.join(autoTmpDir, 'StableProject');
+  const sessionsDir = path.join(autoTmpDir, 'sessions');
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  fs.writeFileSync(path.join(projectDir, 'state.json'), JSON.stringify({
+    stable: { stable_achieved: true },
+  }, null, 2), 'utf8');
+
+  const registryFile = path.join(autoTmpDir, 'registered-projects.json');
+  fs.writeFileSync(registryFile, JSON.stringify([
+    {
+      name: 'StableProject',
+      path: projectDir,
+      supervisorEnabled: true,
+      durationMinutes: 300,
+    },
+  ], null, 2), 'utf8');
+
+  const autoCfg = path.join(autoTmpDir, 'processes.json');
+  const autoStateFile = path.join(autoTmpDir, 'state.json');
+  fs.writeFileSync(autoCfg, JSON.stringify({
+    version: '1.0.0',
+    processes: [
+      {
+        id: 'registered-project-autonomy',
+        type: 'registered-project-autonomy',
+        name: 'Registered Project Autonomy',
+        registryFile,
+        sessionDir: sessionsDir,
+        launcher: path.join(autoTmpDir, 'missing-launcher.ps1'),
+        maxConcurrent: 1,
+        restartCooldownMinutes: 1,
+        maxRestartsPerProject: 2,
+        enabled: true,
+      },
+    ],
+  }, null, 2), 'utf8');
+
+  const autoChild = spawn(process.execPath, [DAEMON], {
+    env: {
+      ...process.env,
+      SUPERVISOR_PROCESSES_CFG: autoCfg,
+      SUPERVISOR_STATE_DIR:     autoTmpDir,
+      SUPERVISOR_STATE_FILE:    autoStateFile,
+      SUPERVISOR_CHECK_INTERVAL_MS: '500',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const autoDeadline = Date.now() + TIMEOUT_MS;
+  let autoState = null;
+  while (Date.now() < autoDeadline) {
+    if (fs.existsSync(autoStateFile)) {
+      try {
+        autoState = JSON.parse(fs.readFileSync(autoStateFile, 'utf8'));
+        const proj = autoState.processes?.['registered-project-autonomy']?.projects?.StableProject;
+        if (proj?.status === 'goal-reached') break;
+      } catch {}
+    }
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  autoChild.kill('SIGTERM');
+  await new Promise(resolve => autoChild.on('exit', resolve));
+
+  const autoEntry = autoState?.processes?.['registered-project-autonomy'];
+  assert(autoEntry, 'registered-project-autonomy state entry should exist');
+  assert(autoEntry.status === 'watching', `expected autonomy status 'watching', got '${autoEntry.status}'`);
+  assert(autoEntry.maxConcurrent === 1, 'maxConcurrent should be exposed in supervisor state');
+  assert(autoEntry.maxRestartsPerProject === 2, 'maxRestartsPerProject should be exposed in supervisor state');
+
+  const stableProject = autoEntry.projects?.StableProject;
+  assert(stableProject, 'StableProject state should be exposed');
+  assert(stableProject.status === 'goal-reached', `expected StableProject goal-reached, got '${stableProject.status}'`);
+  assert(stableProject.reason === 'stable-achieved', `expected stable-achieved reason, got '${stableProject.reason}'`);
+  assert(!stableProject.pid, 'stable project should not be launched');
+
+  fs.rmSync(autoTmpDir, { recursive: true, force: true });
+
   process.stdout.write('PASS: supervisor-daemon smoke test\n');
 }
 

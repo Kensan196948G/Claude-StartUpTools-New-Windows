@@ -74,6 +74,12 @@ Describe 'config/processes.json スキーマ検証' {
         $autonomy = $script:ProcCfg.processes | Where-Object { $_.id -eq 'registered-project-autonomy' }
         $autonomy | Should -Not -BeNullOrEmpty
     }
+    It 'registered-project-autonomy が再起動上限とcooldownを持つこと' {
+        $autonomy = $script:ProcCfg.processes | Where-Object { $_.id -eq 'registered-project-autonomy' }
+        $autonomy.maxConcurrent | Should -BeGreaterThan 0
+        $autonomy.restartCooldownMinutes | Should -BeGreaterThan 0
+        $autonomy.maxRestartsPerProject | Should -BeGreaterThan 0
+    }
 }
 
 # ── supervisor-daemon.js ロジック検証 (node -e) ───────────────
@@ -171,6 +177,30 @@ console.log(JSON.stringify(results));
     It '上限 300s を超えないこと (失敗 10 回)' {
         if (-not $script:NodeExe) { Set-ItResult -Skipped -Because 'node not available' }
         $script:CooldownResults[4] | Should -Be 300
+    }
+}
+
+Describe 'supervisor-daemon.js: registered-project-autonomy guard fields' {
+    It 'goal reached reasons are exposed in projectGoalReached' {
+        $content = Get-Content $script:DaemonJs -Raw
+        $content | Should -Match 'stable-achieved'
+        $content | Should -Match 'deploy-ready'
+        $content | Should -Match 'maintenance-mode'
+        $content | Should -Match 'released'
+    }
+
+    It 'project restart/failure counters are exposed in supervisor state' {
+        $content = Get-Content $script:DaemonJs -Raw
+        $content | Should -Match 'restartCount'
+        $content | Should -Match 'failureCount'
+        $content | Should -Match 'maxRestartsPerProject'
+    }
+
+    It 'max concurrency and cooldown reasons are exposed' {
+        $content = Get-Content $script:DaemonJs -Raw
+        $content | Should -Match 'max-concurrent-reached'
+        $content | Should -Match 'restart-cooldown'
+        $content | Should -Match 'nextRetryAt'
     }
 }
 

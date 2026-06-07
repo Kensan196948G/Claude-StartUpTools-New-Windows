@@ -18,7 +18,7 @@ const SUPERVISOR_DIR = process.env.SUPERVISOR_STATE_DIR     || path.join(os.home
 const STATE_FILE     = process.env.SUPERVISOR_STATE_FILE    || path.join(SUPERVISOR_DIR, 'state.json');
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const CHECK_INTERVAL_MS  = 8000;   // main loop cadence
+const CHECK_INTERVAL_MS  = parseInt(process.env.SUPERVISOR_CHECK_INTERVAL_MS || '8000', 10); // main loop cadence
 const MAX_COOLDOWN_SEC   = 300;    // exponential backoff ceiling
 const LOG_PREFIX         = '[supervisor]';
 
@@ -28,6 +28,7 @@ const processState = {};
 // childHandles: { [id]: ChildProcess }
 const childHandles = {};
 const projectLastStart = {};
+const projectStats = {};
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 function log(msg) {
@@ -72,11 +73,13 @@ function latestSessionForProject(sessionDir, project) {
 
 function projectGoalReached(projectPath) {
   const state = readJsonFile(path.join(projectPath, 'state.json'), null);
-  if (!state) return false;
-  if (state.deploy?.ready === true) return true;
-  if (state.stable?.stable_achieved === true) return true;
+  if (!state) return { reached: false, reason: '' };
+  if (state.deploy?.ready === true) return { reached: true, reason: 'deploy-ready' };
+  if (state.stable?.stable_achieved === true) return { reached: true, reason: 'stable-achieved' };
   const phaseMode = state.project?.phase_mode || state.maintenance?.phase_mode || '';
-  return phaseMode === 'maintenance' || phaseMode === 'released';
+  if (phaseMode === 'maintenance') return { reached: true, reason: 'maintenance-mode' };
+  if (phaseMode === 'released') return { reached: true, reason: 'released' };
+  return { reached: false, reason: '' };
 }
 
 // ── Config loader ────────────────────────────────────────────────────────────
@@ -264,6 +267,7 @@ async function checkProcess(cfg) {
     const launcher = expandPath(cfg.launcher || path.join(PROJ_ROOT, 'scripts', 'main', 'Start-ClaudeAutoTimeout.ps1'));
     const maxConcurrent = cfg.maxConcurrent || 1;
     const cooldownMs = (cfg.restartCooldownMinutes || 10) * 60 * 1000;
+    const maxRestartsPerProject = cfg.maxRestartsPerProject || 6;
     const entries = readJsonFile(registryFile, []);
     const enabled = Array.isArray(entries) ? entries.filter(p => p && p.supervisorEnabled !== false) : [];
     const projects = {};
@@ -272,30 +276,57 @@ async function checkProcess(cfg) {
     for (const p of enabled) {
       const projectName = p.name;
       const handleKey = `${cfg.id}:${projectName}`;
+      if (!projectStats[projectName]) {
+        projectStats[projectName] = { restartCount: 0, failureCount: 0, lastExitCode: null, lastExitSignal: null, lastExitAt: null };
+      }
+      const stats = projectStats[projectName];
       const latest = latestSessionForProject(sessionDir, projectName);
-      const running = latest?.status === 'running';
+      const child = childHandles[handleKey] || null;
+      const childAlive = child ? isPidAlive(child.pid) : false;
+      const running = latest?.status === 'running' || childAlive;
       if (running) runningCount += 1;
-      const goalReached = projectGoalReached(p.path || '');
+      const goal = projectGoalReached(p.path || '');
       projects[projectName] = {
         project: projectName,
         path: p.path || '',
-        status: goalReached ? 'goal-reached' : (running ? 'running' : 'idle'),
+        status: goal.reached ? 'goal-reached' : (running ? 'running' : 'idle'),
+        reason: goal.reason || (running ? (latest?.status === 'running' ? 'active-session' : 'launcher-process-running') : ''),
         latestSession: latest?.sessionId || null,
         supervisorEnabled: p.supervisorEnabled !== false,
         durationMinutes: p.durationMinutes || 300,
-        pid: childHandles[handleKey]?.pid || null,
+        pid: child?.pid || null,
+        restartCount: stats.restartCount,
+        failureCount: stats.failureCount,
+        lastExitCode: stats.lastExitCode,
+        lastExitSignal: stats.lastExitSignal,
+        lastExitAt: stats.lastExitAt,
+        nextRetryAt: null,
       };
 
-      if (goalReached || running) continue;
-      if (runningCount >= maxConcurrent) continue;
-      if (!fs.existsSync(launcher) || !fs.existsSync(p.path || '')) {
+      if (goal.reached || running) continue;
+      if (stats.failureCount >= maxRestartsPerProject) {
         projects[projectName].status = 'blocked';
-        projects[projectName].reason = 'launcher-or-project-path-missing';
+        projects[projectName].reason = 'max-restarts-per-project';
+        continue;
+      }
+      if (runningCount >= maxConcurrent) {
+        projects[projectName].status = 'waiting';
+        projects[projectName].reason = 'max-concurrent-reached';
+        continue;
+      }
+      const launcherExists = fs.existsSync(launcher);
+      const projectPathExists = fs.existsSync(p.path || '');
+      if (!launcherExists || !projectPathExists) {
+        projects[projectName].status = 'blocked';
+        projects[projectName].reason = !launcherExists ? 'launcher-missing' : 'project-path-missing';
         continue;
       }
       const lastStart = projectLastStart[projectName] || 0;
-      if (Date.now() - lastStart < cooldownMs) {
+      const nextRetryAtMs = lastStart + cooldownMs;
+      if (Date.now() < nextRetryAtMs) {
         projects[projectName].status = 'cooldown';
+        projects[projectName].reason = 'restart-cooldown';
+        projects[projectName].nextRetryAt = new Date(nextRetryAtMs).toISOString();
         continue;
       }
 
@@ -303,22 +334,33 @@ async function checkProcess(cfg) {
       const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher,
         '-Project', projectName, '-DurationMinutes', String(p.durationMinutes || 300), '-Trigger', 'cron'];
       log(`AUTOSTART ${projectName}: ${psExe} ${args.join(' ')}`);
-      const child = spawn(psExe, args, { cwd: PROJ_ROOT, stdio: 'inherit', shell: false, windowsHide: true });
-      childHandles[handleKey] = child;
+      const autoChild = spawn(psExe, args, { cwd: PROJ_ROOT, stdio: 'inherit', shell: false, windowsHide: true });
+      childHandles[handleKey] = autoChild;
       projectLastStart[projectName] = Date.now();
       runningCount += 1;
       projects[projectName].status = 'starting';
-      projects[projectName].pid = child.pid;
-      child.on('exit', (code, signal) => {
+      projects[projectName].reason = 'launched';
+      projects[projectName].pid = autoChild.pid;
+      stats.restartCount += 1;
+      autoChild.on('exit', (code, signal) => {
         log(`AUTOEXIT ${projectName}: code=${code} signal=${signal}`);
+        stats.lastExitCode = code;
+        stats.lastExitSignal = signal;
+        stats.lastExitAt = new Date().toISOString();
+        if (code !== 0) stats.failureCount += 1;
         delete childHandles[handleKey];
+        writeState();
       });
     }
 
-    entry.status = enabled.length ? 'running' : 'idle';
+    entry.status = enabled.length ? 'watching' : 'idle';
     entry.projects = projects;
     entry.registryFile = registryFile;
     entry.sessionDir = sessionDir;
+    entry.maxConcurrent = maxConcurrent;
+    entry.restartCooldownMinutes = cfg.restartCooldownMinutes || 10;
+    entry.maxRestartsPerProject = maxRestartsPerProject;
+    entry.runningCount = runningCount;
     entry.lastCheckedAt = new Date().toISOString();
     return;
   }

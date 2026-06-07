@@ -48,6 +48,7 @@
       "launcher": "${PROJ_ROOT}/scripts/main/Start-ClaudeAutoTimeout.ps1",
       "maxConcurrent": 1,
       "restartCooldownMinutes": 10,
+      "maxRestartsPerProject": 6,
       "enabled": true
     }
   ]

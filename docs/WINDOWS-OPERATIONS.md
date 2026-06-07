@@ -74,7 +74,23 @@ Safety controls:
 |---|---:|---|
 | `maxConcurrent` | 1 | Avoid launching too many Claude sessions |
 | `restartCooldownMinutes` | 10 | Avoid rapid restart loops |
+| `maxRestartsPerProject` | 6 | Block repeated failing projects |
 | `durationMinutes` | 300 | Per-project session cap |
+
+`registered-project-autonomy` exposes per-project status in
+`%USERPROFILE%\.claudeos\supervisor\state.json`:
+
+| Status | Meaning |
+|---|---|
+| `running` | A session file or launcher process is active |
+| `starting` | The launcher was just started |
+| `waiting` | Another project is running and `maxConcurrent` is reached |
+| `cooldown` | Restart cooldown is active; see `nextRetryAt` |
+| `goal-reached` | `deploy.ready`, `stable.stable_achieved`, maintenance, or released state was detected |
+| `blocked` | Launcher/project path is missing or restart limit was reached |
+
+Each project entry includes `restartCount`, `failureCount`, `lastExitCode`,
+`lastExitSignal`, `lastExitAt`, `reason`, and `nextRetryAt` where applicable.
 
 ## Legacy Linux
 
