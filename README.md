@@ -93,6 +93,19 @@ npm run test:node
 npm run lint:pester
 ```
 
+## Release Candidate Review
+
+`v1.0.0` tag creation and GitHub Release publication are human-only final
+actions. Development may prepare RC evidence, but it must not publish the final
+release automatically.
+
+| Document | Purpose |
+|---|---|
+| [release-candidate-checklist.md](docs/release-candidate-checklist.md) | Current RC evidence gate |
+| [v1.0.0-rc.1-release-notes.md](docs/v1.0.0-rc.1-release-notes.md) | Release candidate notes |
+| [rc-real-machine-verification.md](docs/rc-real-machine-verification.md) | Clean Windows and real project verification |
+| [human-final-release-gate.md](docs/human-final-release-gate.md) | Human-only final tag/release checklist |
+
 See [docs/WINDOWS-OPERATIONS.md](docs/WINDOWS-OPERATIONS.md) for the Windows
 architecture and registry format. See
 [docs/windows-migration-audit.md](docs/windows-migration-audit.md) for the

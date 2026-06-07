@@ -79,8 +79,9 @@ tests/
 ## 実行方法
 
 ```powershell
-# 全テスト実行
-Invoke-Pester .\tests -CI
+# release gate
+npm test
+npm run lint:pester
 
 # カテゴリ別実行
 Invoke-Pester .\tests\unit        -Output Detailed
@@ -88,7 +89,8 @@ Invoke-Pester .\tests\integration -Output Detailed
 Invoke-Pester .\tests\smoke       -Output Detailed
 ```
 
-CI では `.\tests` をルートとして再帰検索するため、サブディレクトリ追加時も CI 設定変更は不要です。
+CI では Windows release gate と同じ `.\tests\unit` を実行します。
+Integration / smoke tests remain useful for local extended review.
 
 ## カバレッジ状況
 
