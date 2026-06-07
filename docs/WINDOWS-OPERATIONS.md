@@ -23,6 +23,31 @@ Each entry has:
 }
 ```
 
+Schema rules:
+
+| Field | Rule |
+|---|---|
+| `name` | Required and unique, case-insensitive |
+| `path` | Required Windows path |
+| `githubUrl` | Optional, normalized to `https://github.com/owner/repo` |
+| `durationMinutes` | Optional, 1 to 1440 |
+| `supervisorEnabled` | Optional, defaults to true at registration |
+
+Before overwriting an existing registry, the tool writes a backup under:
+
+```text
+%USERPROFILE%\.claudeos\backups\
+```
+
+If JSON parsing or schema validation fails, the invalid file is copied to the
+same backup folder and the command raises an error that includes the backup path.
+Restore the latest valid backup from PowerShell:
+
+```powershell
+Import-Module .\scripts\lib\ProjectRegistry.psm1 -Force
+Restore-ProjectRegistryBackup
+```
+
 ## Candidate Scan
 
 ```powershell
@@ -33,7 +58,9 @@ pwsh -File .\scripts\main\Register-ProjectCandidate.ps1 -Project MyProject -Unre
 ```
 
 `localExcludes` in `config/config.json` prevents folders such as this tool
-repository, recycle-bin folders, or archives from appearing as candidates.
+repository, recycle-bin folders, Windows system folders, package folders, or
+archives from appearing as candidates. The module also carries a conservative
+default exclude list for common D-drive system folders.
 
 ## Supervisor
 

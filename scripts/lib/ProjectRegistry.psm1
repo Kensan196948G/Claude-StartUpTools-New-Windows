@@ -1,5 +1,34 @@
 Set-StrictMode -Version Latest
 
+$script:DefaultProjectRegistryExcludeNames = @(
+    '$RECYCLE.BIN',
+    'System Volume Information',
+    'Recovery',
+    'Config.Msi',
+    'MSOCache',
+    'PerfLogs',
+    'WindowsApps',
+    'WUDownloadCache',
+    'OneDriveTemp',
+    'Temp',
+    'tmp',
+    'node_modules',
+    '.git',
+    'Claude-StartUpTools-New-Windows'
+)
+
+function Get-ProjectRegistryDefaultExcludeName {
+    return @($script:DefaultProjectRegistryExcludeNames)
+}
+
+function Resolve-ProjectRegistryExcludeName {
+    param([string[]]$ExcludeNames = @())
+
+    return @($script:DefaultProjectRegistryExcludeNames + @($ExcludeNames) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+}
+
 function Expand-ProjectRegistryPath {
     param([string]$Path = '')
 
@@ -27,15 +56,133 @@ function Read-RegisteredProject {
 
     $path = Expand-ProjectRegistryPath -Path $RegistryPath
     if (-not (Test-Path $path)) { return @() }
+    $data = $null
     try {
         $raw = Get-Content -Path $path -Raw -Encoding UTF8
         if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
         $data = $raw | ConvertFrom-Json
-        return @($data)
     }
     catch {
-        throw "registered project registry is invalid: $path ($($_.Exception.Message))"
+        $backup = Backup-ProjectRegistry -RegistryPath $path -Reason 'invalid-json'
+        throw "registered project registry is invalid: $path; backup: $backup ($($_.Exception.Message))"
     }
+
+    $items = @($data)
+    $schema = Test-RegisteredProjectRegistry -Projects $items
+    if (-not $schema.IsValid) {
+        $backup = Backup-ProjectRegistry -RegistryPath $path -Reason 'invalid-schema'
+        throw "registered project registry schema is invalid: $path; backup: $backup; errors: $($schema.Errors -join '; ')"
+    }
+    return $items
+}
+
+function Test-RegisteredProjectRegistry {
+    param([object[]]$Projects = @())
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    $index = 0
+    foreach ($project in @($Projects)) {
+        $prefix = "[$index]"
+        if (-not $project) {
+            $errors.Add("$prefix entry is null")
+            $index++
+            continue
+        }
+        foreach ($required in @('name', 'path')) {
+            $prop = $project.PSObject.Properties[$required]
+            if (-not $prop -or [string]::IsNullOrWhiteSpace([string]$prop.Value)) {
+                $errors.Add("$prefix missing required property: $required")
+            }
+        }
+        if ($project.PSObject.Properties['name'] -and -not [string]::IsNullOrWhiteSpace([string]$project.name)) {
+            $key = ([string]$project.name).ToLowerInvariant()
+            if ($seen.ContainsKey($key)) {
+                $errors.Add("$prefix duplicate project name: $($project.name)")
+            }
+            else {
+                $seen[$key] = $true
+            }
+        }
+        if ($project.PSObject.Properties['durationMinutes']) {
+            try {
+                $duration = [int]$project.durationMinutes
+                if ($duration -lt 1 -or $duration -gt 1440) {
+                    $errors.Add("$prefix durationMinutes must be between 1 and 1440")
+                }
+            }
+            catch {
+                $errors.Add("$prefix durationMinutes is not an integer")
+            }
+        }
+        if ($project.PSObject.Properties['githubUrl'] -and -not [string]::IsNullOrWhiteSpace([string]$project.githubUrl)) {
+            if ([string]$project.githubUrl -notmatch '^https://github\.com/[^/]+/[^/]+$') {
+                $errors.Add("$prefix githubUrl must be normalized https://github.com/owner/repo")
+            }
+        }
+        $index++
+    }
+
+    return [pscustomobject]@{
+        IsValid = ($errors.Count -eq 0)
+        Errors = @($errors)
+    }
+}
+
+function Backup-ProjectRegistry {
+    param(
+        [string]$RegistryPath = '',
+        [string]$Reason = 'backup'
+    )
+
+    $path = Expand-ProjectRegistryPath -Path $RegistryPath
+    if (-not (Test-Path $path)) { return '' }
+    $dir = Split-Path -Parent $path
+    $backupDir = Join-Path $dir 'backups'
+    if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Force -Path $backupDir | Out-Null }
+    $safeReason = ($Reason -replace '[^A-Za-z0-9_.-]', '-')
+    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $name = [IO.Path]::GetFileNameWithoutExtension($path)
+    $backupPath = Join-Path $backupDir ("{0}_{1}_{2}.json" -f $name, $stamp, $safeReason)
+    Copy-Item -Path $path -Destination $backupPath -Force
+    return $backupPath
+}
+
+function Get-ProjectRegistryBackup {
+    param([string]$RegistryPath = '')
+
+    $path = Expand-ProjectRegistryPath -Path $RegistryPath
+    $dir = Split-Path -Parent $path
+    $backupDir = Join-Path $dir 'backups'
+    if (-not (Test-Path $backupDir)) { return @() }
+    $name = [IO.Path]::GetFileNameWithoutExtension($path)
+    return @(Get-ChildItem -Path $backupDir -Filter "$name*.json" -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending)
+}
+
+function Restore-ProjectRegistryBackup {
+    param(
+        [string]$RegistryPath = '',
+        [string]$BackupPath = ''
+    )
+
+    $path = Expand-ProjectRegistryPath -Path $RegistryPath
+    $source = $BackupPath
+    if ([string]::IsNullOrWhiteSpace($source)) {
+        $source = @(Get-ProjectRegistryBackup -RegistryPath $path | Select-Object -First 1).FullName
+    }
+    if ([string]::IsNullOrWhiteSpace($source) -or -not (Test-Path $source)) {
+        throw "project registry backup not found"
+    }
+    $data = @(Get-Content -Path $source -Raw -Encoding UTF8 | ConvertFrom-Json)
+    $schema = Test-RegisteredProjectRegistry -Projects $data
+    if (-not $schema.IsValid) {
+        throw "project registry backup schema is invalid: $source; errors: $($schema.Errors -join '; ')"
+    }
+    $dir = Split-Path -Parent $path
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    Copy-Item -Path $source -Destination $path -Force
+    return $path
 }
 
 function Write-RegisteredProject {
@@ -47,6 +194,13 @@ function Write-RegisteredProject {
     $path = Expand-ProjectRegistryPath -Path $RegistryPath
     $dir = Split-Path -Parent $path
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    $schema = Test-RegisteredProjectRegistry -Projects $Projects
+    if (-not $schema.IsValid) {
+        throw "registered project registry schema is invalid: $($schema.Errors -join '; ')"
+    }
+    if (Test-Path $path) {
+        Backup-ProjectRegistry -RegistryPath $path -Reason 'pre-write' | Out-Null
+    }
     $tmp = "$path.tmp"
     @($Projects) | ConvertTo-Json -Depth 8 | Set-Content -Path $tmp -Encoding UTF8
     Move-Item -Path $tmp -Destination $path -Force
@@ -83,8 +237,9 @@ function Get-WindowsProjectCandidate {
     $root = [Environment]::ExpandEnvironmentVariables($ProjectsDir)
     if (-not (Test-Path $root)) { return @() }
 
+    $effectiveExcludes = Resolve-ProjectRegistryExcludeName -ExcludeNames $ExcludeNames
     $dirs = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin $ExcludeNames } |
+        Where-Object { $_.Name -notin $effectiveExcludes } |
         Sort-Object Name
 
     $items = foreach ($dir in $dirs) {
@@ -160,6 +315,9 @@ function Sync-WindowsProjectRegistry {
 }
 
 Export-ModuleMember -Function Expand-ProjectRegistryPath, Get-ProjectRegistryPath, `
-    Read-RegisteredProject, Write-RegisteredProject, Get-ProjectGithubUrl, `
+    Get-ProjectRegistryDefaultExcludeName, Resolve-ProjectRegistryExcludeName, `
+    Read-RegisteredProject, Write-RegisteredProject, Test-RegisteredProjectRegistry, `
+    Backup-ProjectRegistry, Get-ProjectRegistryBackup, Restore-ProjectRegistryBackup, `
+    Get-ProjectGithubUrl, `
     Get-WindowsProjectCandidate, Register-WindowsProject, Unregister-WindowsProject, `
     Sync-WindowsProjectRegistry

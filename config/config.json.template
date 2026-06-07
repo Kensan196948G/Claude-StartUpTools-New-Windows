@@ -5,6 +5,17 @@
   "localExcludes": [
     "$RECYCLE.BIN",
     "System Volume Information",
+    "Recovery",
+    "Config.Msi",
+    "MSOCache",
+    "PerfLogs",
+    "WindowsApps",
+    "WUDownloadCache",
+    "OneDriveTemp",
+    "Temp",
+    "tmp",
+    "node_modules",
+    ".git",
     "Claude-StartUpTools-New-Windows"
   ],
   "projectRegistry": {
