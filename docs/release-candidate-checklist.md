@@ -15,7 +15,7 @@ security exceptions, GitHub Projects final Done status, and release tagging.
 | Mission Control | Browser console error 0 | Verified at `http://127.0.0.1:3737/mission-control` |
 | Project Registry | D-drive candidates visible | `/api/data.registrySummary` returned candidates and GitHub links |
 | Supervisor | Registered-project autonomy visible | Supervisor tab verified with Windows Task Scheduler hint |
-| CI | GitHub Actions green | Pending next push |
+| CI | GitHub Actions green | `27079992855` passed on 2026-06-07 |
 
 ## Windows Setup Check
 
