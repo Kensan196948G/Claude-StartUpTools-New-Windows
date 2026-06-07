@@ -11,8 +11,8 @@ process has intentionally not created the final tag or GitHub Release.
 |---|---|
 | Repository | `Kensan196948G/Claude-StartUpTools-New-Windows` |
 | Branch | `main` |
-| Release candidate HEAD | `0f2ca45` |
-| Latest passing CI | `27080265804` |
+| Release candidate HEAD | Confirm with `git rev-parse --short HEAD` |
+| Latest passing CI | Confirm with `gh run list --workflow CI --limit 3` |
 | Open issues | `0` |
 | Local Pester | `401 passed / 0 failed` |
 | Node smoke | `PASS: supervisor-daemon smoke test` |
