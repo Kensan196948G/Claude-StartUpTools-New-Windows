@@ -1,34 +1,36 @@
+---
+description: 現セッションの最大作業時間 max_duration_minutes を変更する
+---
+
 # /work-time-set — 作業時間の変更
 
 引数:
-- `$1 = <minutes>` → その分数に設定（例: `/work-time-set 240` で 4 時間）
+- `$1 = <minutes>`: その分数に設定。例: `/work-time-set 240`
 
-実行:
+Windows 版では `%USERPROFILE%\.claudeos\sessions\<session-id>.json` を更新する。
 
-```bash
-NEW_MIN="${1:-300}"
-SESSION_FILE="$HOME/.claudeos/sessions/${CLAUDE_SESSION_ID}.json"
+```powershell
+$NewMinutes = 300  # replace with the requested minutes
+$SessionId = $env:CLAUDE_SESSION_ID
+if (-not $SessionId) {
+  throw "CLAUDE_SESSION_ID is not set. Mission Control or session info can be used to identify the active session."
+}
 
-if [ ! -f "$SESSION_FILE" ]; then
-  echo "[ERROR] session.json が見つかりません: $SESSION_FILE" >&2
-  exit 1
-fi
+$SessionFile = Join-Path $env:USERPROFILE ".claudeos\sessions\$SessionId.json"
+if (-not (Test-Path -LiteralPath $SessionFile)) {
+  throw "session.json not found: $SessionFile"
+}
 
-python3 - "$SESSION_FILE" "$NEW_MIN" <<'PYEOF'
-import json, sys
-from datetime import datetime, timedelta
-path = sys.argv[1]
-new_min = int(sys.argv[2])
-with open(path) as f:
-    s = json.load(f)
-start = datetime.fromisoformat(s['start_time'].replace('Z', '+00:00'))
-s['max_duration_minutes'] = new_min
-s['end_time_planned'] = (start + timedelta(minutes=new_min)).isoformat()
-s['last_updated'] = datetime.now().astimezone().isoformat()
-with open(path, 'w') as f:
-    json.dump(s, f, ensure_ascii=False, indent=2)
-print(f'[OK] max_duration_minutes = {new_min}, end_time_planned 再計算済')
-PYEOF
+$session = Get-Content -LiteralPath $SessionFile -Raw | ConvertFrom-Json
+$start = [DateTimeOffset]::Parse($session.start_time)
+$session.max_duration_minutes = $NewMinutes
+$session.end_time_planned = $start.AddMinutes($NewMinutes).ToString("o")
+$session.last_updated = [DateTimeOffset]::Now.ToString("o")
+$session | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $SessionFile -Encoding UTF8
+
+"[OK] max_duration_minutes = $NewMinutes"
 ```
 
-情報タブは 1 秒 poll なので即時に表示が追従します。
+注意:
+- 変更は現在セッションにのみ適用する。
+- Task Scheduler 登録の既定実行時間は `Register-AutoRunTask.ps1` 側で変更する。

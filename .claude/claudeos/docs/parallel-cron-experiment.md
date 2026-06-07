@@ -1,4 +1,8 @@
-# 並列 Cron 実験ガイド — 2セッション同時実行
+# Legacy parallel cron experiment — 2セッション同時実行
+
+> Windows fork note: this page is retained as legacy experiment history.
+> It is not an active Windows runtime path. Use Windows AutoRun, Task Scheduler,
+> Supervisor, and Agent Teams for release work.
 
 ## 概要
 
@@ -10,7 +14,7 @@
 ## アーキテクチャ
 
 ```
-Linux cron
+Legacy scheduler
   ├─ Session A: CTO ロール（実装・PR作成・マージ判断）
   │    claude -p "$(cat ~/.claudeos/roles/cto-build.md)" --project <ProjectName>
   │

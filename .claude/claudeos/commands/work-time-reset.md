@@ -1,9 +1,15 @@
+---
+description: 現セッションの最大作業時間をデフォルト 300 分に戻す
+---
+
 # /work-time-reset — 作業時間リセット
 
-デフォルト 300 分 (5 時間) に戻します。内部的には `/work-time-set 300` と等価です。
+デフォルト 300 分に戻す。内部的には `/work-time-set 300` と等価。
 
-```bash
-bash /home/kensan/.claudeos/cron-cli.sh worktime-reset --session "$CLAUDE_SESSION_ID"
+Windows 版では現在の session JSON を PowerShell で更新する。
+
+```powershell
+/work-time-set 300
 ```
 
-`cron-cli.sh` が無い場合は `/work-time-set 300` を呼び出してください。
+実行後、Mission Control または `Show-SessionInfoTab.ps1` で残り時間を確認する。

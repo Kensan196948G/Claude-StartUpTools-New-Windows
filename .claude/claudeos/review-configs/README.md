@@ -182,15 +182,18 @@ codex logout
 codex login
 ```
 
-### Linux 側 (cron 実行先) で codex / coderabbit が見つからない
+### Windows AutoRun 実行時に codex / coderabbit が見つからない
 
-`~/.env-claudeos` に PATH を追加:
+PowerShell から PATH と認証状態を確認:
 
-```bash
-export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+```powershell
+Get-Command codex -ErrorAction SilentlyContinue
+Get-Command coderabbit -ErrorAction SilentlyContinue
+codex login
 ```
 
-または `cron-launcher.sh` の冒頭で明示的に PATH を export。
+Task Scheduler で実行する場合は、登録時のユーザー環境で `pwsh`,
+`node`, `git`, `gh`, `claude`, `codex` が解決できることを確認する。
 
 ### コスト管理
 

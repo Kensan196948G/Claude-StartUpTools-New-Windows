@@ -34,7 +34,7 @@ sandbox_mode = "workspace-write"
 model_reasoning_effort = "high"
 
 [profiles.full_auto]
-# 自律実行用 (Linux cron)
+# 自律実行用 (Windows AutoRun / Task Scheduler)
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 

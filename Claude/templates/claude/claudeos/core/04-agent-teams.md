@@ -264,10 +264,10 @@ project 配置分は TemplateSyncManager 経由で全登録プロジェクトへ
 > これらは **プロジェクト非依存の汎用形**。固有 workflow（`code-review-parallel` 等）は
 > 本プロジェクトに残し、テンプレは「型の出発点」として全プロジェクトへ配る。
 
-> 💡 **SSH 越しで migrate / 配布スクリプトを実行する時は `stdbuf -oL -eL node …` を使う**:
-> 非 TTY だと Node の stdout がブロックバッファされ、**完走していても出力が出ず「固まった」ように見える**。
-> `stdbuf -oL` で行バッファ化すれば即時表示。`timeout N` 併用で安全に切り分けできる。
-> 例: `ssh host 'cd <repo> && timeout 120 stdbuf -oL -eL node scripts/setup/migrate-agent-teams.js --apply'`
+> 💡 **Windows 版では migrate / 配布スクリプトをローカル PowerShell から実行する**:
+> 旧リモート配布は active runtime ではない。時間制限が必要な場合は PowerShell job
+> または `Start-Process` と待機タイムアウトで切り分ける。
+> 例: `pwsh -NoProfile -Command "node scripts/setup/migrate-workflows-agentteams.js --apply"`
 
 ### 🔌 無効化（必要時）
 

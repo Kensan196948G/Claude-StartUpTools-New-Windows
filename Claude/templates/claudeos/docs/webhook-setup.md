@@ -54,16 +54,7 @@
 
 URL と シークレットは git に入れず環境変数で管理する。
 
-### Linux / macOS（~/.bashrc または ~/.zshrc に追加）
-
-```bash
-export TEAMS_WEBHOOK_URL="https://outlook.office.com/webhook/..."
-export HTTPS_WEBHOOK_URL="https://your-server.example.com/webhook"
-export HTTPS_WEBHOOK_SECRET="your-signing-secret"  # 任意
-export SLACK_WEBHOOK_URL=""  # 将来用（空のままでOK）
-```
-
-### Windows（システム環境変数）
+### Windows（ユーザー環境変数）
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("TEAMS_WEBHOOK_URL", "https://...", "User")
@@ -71,24 +62,18 @@ export SLACK_WEBHOOK_URL=""  # 将来用（空のままでOK）
 [System.Environment]::SetEnvironmentVariable("HTTPS_WEBHOOK_SECRET", "your-secret", "User")
 ```
 
-### Linux cron（/etc/cron.d または cronファイルの先頭に追加）
-
-```
-TEAMS_WEBHOOK_URL=https://outlook.office.com/webhook/...
-HTTPS_WEBHOOK_URL=https://your-server.example.com/webhook
-HTTPS_WEBHOOK_SECRET=your-signing-secret
-```
+Task Scheduler 経由の AutoRun でも、登録ユーザーの環境変数として解決できることを確認する。
 
 ---
 
 ## Step 4: 動作テスト
 
-```bash
-# Teams テスト
-TEAMS_WEBHOOK_URL="https://..." node .claude/claudeos/scripts/hooks/webhook-notifier.js stable_achieved '{"version":"v3.2.111","pr":265}'
+```powershell
+$env:TEAMS_WEBHOOK_URL = "https://..."
+node .claude/claudeos/scripts/hooks/webhook-notifier.js stable_achieved '{"version":"v3.2.111","pr":265}'
 
-# 汎用 HTTPS テスト
-HTTPS_WEBHOOK_URL="https://..." node .claude/claudeos/scripts/hooks/webhook-notifier.js session_end '{}'
+$env:HTTPS_WEBHOOK_URL = "https://..."
+node .claude/claudeos/scripts/hooks/webhook-notifier.js session_end '{}'
 ```
 
 ---

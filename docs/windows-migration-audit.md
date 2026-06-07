@@ -23,10 +23,10 @@ Scheduler, local project registry, and Mission Control. The old Linux runtime
 has been moved under `legacy-linux/` and no active `.sh` file remains under the
 current `scripts/` tree.
 
-The release blocker is not a live SSH/tmux/bash executable path. The blocker is
-documentation and template drift: several deployable ClaudeOS templates still
-describe Linux cron, crontab, SSH, tmux, or `/home/kensan` paths. Those templates
-must be rewritten or explicitly marked as legacy before `v1.0.0`.
+The release blocker is not a live SSH/tmux/bash executable path. The remaining
+work is documentation and template drift: deployable ClaudeOS templates must
+continue to prefer Windows AutoRun, Task Scheduler, PowerShell, and local
+project registry operations before `v1.0.0`.
 
 ## Current Runtime Boundary
 
@@ -53,7 +53,7 @@ Search scope excluded `legacy-linux/**`, `node_modules/**`, and
 | `Linux cron` / `crontab` / `cron-launcher` | 70 | Template drift and compatibility registry/API names |
 | `tmux` | 44 | Old history and templates |
 | `bash` / `.sh` | 183 | Mostly markdown fences, old history, and scanner code |
-| `/home/kensan` | 9 | Template drift that must be rewritten |
+| Legacy home paths | 9 | Baseline from first scan; command templates have since been rewritten |
 | `Linux` | 68 | Mixed legacy references, project names, and old template guidance |
 | Active `.sh` files outside `legacy-linux/` | 0 | Pass |
 
@@ -64,24 +64,25 @@ Search scope excluded `legacy-linux/**`, `node_modules/**`, and
 | Active Windows runtime | `scripts/main/*.ps1`, `scripts/lib/*.psm1`, `scripts/dashboards/*.js`, `config/*.json.template` | Keep and harden |
 | Compatibility names | `serve-dashboard.js` `/api/cron`, `cron-registry.json`, `hasCron` | Keep temporarily; UI must say AutoRun / Task Scheduler |
 | Legacy source history | `CHANGELOG.md`, `ONBOARDING.md`, `TASKS.md` | Split into migration-source history or add a top notice |
-| Deployable templates needing rewrite | `Claude/templates/claude/CLAUDE.md`, `Claude/templates/claudeos/commands/cron-*.md`, `work-time-reset.md`, `webhook-setup.md`, `parallel-cron-experiment.md`, review config docs | Rewrite for Windows or move to `legacy-linux/` |
+| Deployable templates needing rewrite | `Claude/templates/claude/CLAUDE.md`, `Claude/templates/claudeos/commands/cron-*.md`, `work-time-reset.md`, `webhook-setup.md`, `parallel-cron-experiment.md`, review config docs | Initial Windows rewrite completed; continue reducing legacy experiment text |
 | Explicit guardrails | `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/WINDOWS-OPERATIONS.md` | Keep; these correctly state no active SSH/Linux runtime |
 
 ## Findings
 
 ### P1: Deployable command templates still instruct Linux cron
 
-Examples:
+Original examples from the first scan:
 
 | File | Problem |
 |---|---|
 | `Claude/templates/claudeos/commands/cron-register.md` | Describes Linux crontab registration |
-| `Claude/templates/claudeos/commands/cron-cancel.md` | Calls `/home/kensan/.claudeos/cron-cli.sh` |
-| `Claude/templates/claudeos/commands/cron-list.md` | Uses `crontab -l` |
-| `Claude/templates/claudeos/commands/work-time-reset.md` | Calls Linux `cron-cli.sh` |
+| `Claude/templates/claudeos/commands/cron-cancel.md` | Called the old Linux CLI |
+| `Claude/templates/claudeos/commands/cron-list.md` | Listed old scheduler entries directly |
+| `Claude/templates/claudeos/commands/work-time-reset.md` | Called the old Linux CLI |
 
-Action: replace these with Windows AutoRun / Task Scheduler commands, or move
-the old command set to `legacy-linux/Claude/templates/...`.
+Status: fixed in Issue #1 work. The compatibility command names remain
+`/cron-*`, but the instructions now use Windows AutoRun, Task Scheduler,
+`Register-AutoRunTask.ps1`, and PowerShell session JSON updates.
 
 ### P1: Main Claude template still claims Linux cron execution
 
@@ -89,8 +90,9 @@ the old command set to `legacy-linux/Claude/templates/...`.
 by Linux cron. This is a deployable template, so it can misconfigure every
 registered project.
 
-Action: rewrite it to use `Start-ClaudeAutoTimeout.ps1`,
-`Register-AutoRunTask.ps1`, and `registered-projects.json`.
+Status: fixed in Issue #1 work. Startup checks now reference
+`Register-ProjectCandidate.ps1`, `Register-SupervisorTask.ps1`, and
+`Register-AutoRunTask.ps1`.
 
 ### P2: Historical docs are not separated from Windows current state
 
@@ -125,7 +127,7 @@ trimmed when the Windows-only release message is finalized.
 | No live tmux/bash launcher in Windows path | Pass |
 | Windows Task Scheduler path present | Pass |
 | D-drive registry present | Pass |
-| Deployable templates Windows-only | Fail |
+| Deployable templates Windows-only | Partial: command templates and main CLAUDE template fixed; legacy experiment docs remain labeled |
 | Current docs separated from source history | Partial |
 | Mission Control Windows terminology | Partial |
 
@@ -136,4 +138,3 @@ trimmed when the Windows-only release message is finalized.
 3. Add `/api/autorun` as an alias for `/api/cron` while keeping backward compatibility.
 4. Expand Pester tests for `WindowsHost` / `Host` registry entries.
 5. Re-run `npm test`, browser Mission Control check, and push.
-

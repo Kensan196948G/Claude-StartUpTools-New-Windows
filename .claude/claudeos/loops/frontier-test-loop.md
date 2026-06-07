@@ -118,9 +118,9 @@ skip 実行時の副作用リスクが「高」の場合はベンチマーク除
 
 ---
 
-## schedule / cron 登録
+## Windows AutoRun 登録
 
-月次実行の cron 式:
+月次実行の目安:
 
 ```
 1 9 * * 1
@@ -128,11 +128,10 @@ skip 実行時の副作用リスクが「高」の場合はベンチマーク除
 
 （毎週月曜 09:00 JST — 毎月第 1 月曜に限定する場合は `state.json.frontier.last_test_date` の月次チェックで制御）
 
-手動起動（Linux cron が自動実行。手動実行が必要な場合のみ）:
+手動起動（AutoRun が自動実行。手動実行が必要な場合のみ）:
 
-```bash
-# Linux サーバーで直接実行
-~/.claudeos/cron-launcher.sh <project> 60
+```powershell
+pwsh -NoProfile -File .\scripts\main\Start-ClaudeAutoTimeout.ps1 -Project <project> -DurationMinutes 60
 ```
 
 ---

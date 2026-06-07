@@ -23,11 +23,20 @@
 このファイルを読んだ時点で、以下を即座に実行してください。
 ユーザーの最初のメッセージ内容に関わらず、このセクションを最優先で処理します。
 
-### ステップ 1: 実行環境確認（スキップ）
+### ステップ 1: Windows 実行環境確認
 
-自律実行は **Linux cron**（月〜土・プロジェクト別スケジュール・300分制限）が担う。
-`/loop` および `schedule` コマンドによるクラウドスケジュール登録は不要。
-このステップはスキップしてステップ 2 へ直ちに進むこと。
+自律実行は **Windows AutoRun + Task Scheduler + Supervisor** が担う。
+旧リモート/Unix系ランタイムは使用しない。
+
+確認対象:
+
+```powershell
+pwsh -NoProfile -File .\scripts\main\Register-ProjectCandidate.ps1 -List
+pwsh -NoProfile -File .\scripts\main\Register-SupervisorTask.ps1 -Status
+pwsh -NoProfile -File .\scripts\main\Register-AutoRunTask.ps1 -Project "<project-name>" -Status
+```
+
+未登録の場合は D ドライブ候補スキャンと登録を優先する。
 
 ### ステップ 2: Codex セットアップ（任意）
 
@@ -48,8 +57,8 @@ Codex が利用可能な場合のみ実行する。**Codex が使えなくても
 
 `state.json` を読み込み、前回のゴール・KPI 状態を確認してから `/goal` を設定する。
 
-```bash
-cat state.json 2>/dev/null || echo "{}"
+```powershell
+if (Test-Path .\state.json) { Get-Content .\state.json -Raw } else { "{}" }
 gh issue list --state open --limit 20
 gh run list --limit 5
 gh pr list --state open
@@ -66,7 +75,7 @@ gh pr list --state open
 - 1 セッション 1 ゴールを原則とする
 - `or stop after N turns` をターン上限として含める（無限継続防止）
 - `/goal clear` で即時クリア、`/goal` 単体で進捗確認
-- 非対話モード（cron）: `claude -p "/goal <条件>"` で動作
+- 非対話モード（Windows AutoRun）: `Start-ClaudeAutoTimeout.ps1` 経由で `/goal <条件>` を渡して動作
 
 > **以降、全てを CTO の判断に任せます。CTO 全権委任で自律開発を続けてください。**
 
@@ -80,7 +89,7 @@ gh pr list --state open
 
 **プロジェクト期間は CTO 全権委任で決定（最優先）:**
 - 6 か月はデフォルト目安であり、強制制約ではない。CTO 判断で短縮・延長・無期限すべて可
-- 実行は Linux Cron（月〜土、1 セッション最大 5 時間）
+- 実行は Windows AutoRun / Task Scheduler（月〜土、1 セッション最大 5 時間を既定）
 - 開発フェーズの配分は CTO 判断で自由に変更してよい
 - CTO が「デプロイ準備完了」と判断したら `deploy.ready=true` を設定し、手順書を自動生成する
 - 実際のデプロイは**人間（ユーザー）が手動**で実行する（CTO はデプロイを自動実行しない）
@@ -295,7 +304,7 @@ Lead: CTO / Teammate 1: 技術調査 / Teammate 2: 設計 / Teammate 3: Devil's 
 
 ### 6.3 Agent View（`claude agents`）
 
-```bash
+```powershell
 claude agents
 ```
 状態: ✽ Working / ✻ Needs Input / ✙ Idle / ✔ Completed / ✘ Failed

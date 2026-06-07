@@ -1,18 +1,30 @@
-# /cron-cancel — Cron エントリ解除
+---
+description: Windows Task Scheduler の ClaudeOS AutoRun エントリを解除する
+---
+
+# /cron-cancel — Windows AutoRun 解除
+
+互換名として `/cron-cancel` を残す。Windows 版では Task Scheduler の
+`ClaudeOS AutoRun - <project>` タスクを解除する。
 
 引数:
-- `$1 = <id>` → その ID 1 件だけ削除
-- `$1 = "all"` または未指定で確認後 → 全 CLAUDEOS エントリを削除
+- `$1 = <project-name>`: 指定プロジェクトの AutoRun を解除
+- 未指定: 現在のプロジェクトを確認してから解除
 
-実行:
-
-```bash
-# ID 指定
-if [ -n "$1" ] && [ "$1" != "all" ]; then
-  bash /home/kensan/.claudeos/cron-cli.sh cancel --id "$1"
-else
-  bash /home/kensan/.claudeos/cron-cli.sh cancel --all
-fi
+```powershell
+pwsh -NoProfile -File .\scripts\main\Register-AutoRunTask.ps1 `
+  -Project "<project-name>" `
+  -Unregister
 ```
 
-実行後、`/cron-list` を実行して現状を確認してください。
+解除後は状態確認を行う。
+
+```powershell
+pwsh -NoProfile -File .\scripts\main\Register-AutoRunTask.ps1 `
+  -Project "<project-name>" `
+  -Status
+```
+
+注意:
+- Windows Task Scheduler の対象タスクだけを扱う。
+- 全件解除は危険操作なので、対象一覧を出して人間に確認してから行う。
