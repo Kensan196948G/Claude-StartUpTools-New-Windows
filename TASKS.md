@@ -1,5 +1,10 @@
 # TASKS
 
+> Windows fork note: this backlog includes upstream source-history tasks from
+> the Linux/SSH/tmux era. New Windows release work is tracked from
+> `docs/windows-migration-audit.md` and GitHub Issues in
+> `Kensan196948G/Claude-StartUpTools-New-Windows`.
+
 このファイルは `手動管理セクション` と `自動抽出セクション` に分かれます。
 
 - 手動管理: 人が直接追加・編集する backlog

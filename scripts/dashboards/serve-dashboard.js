@@ -534,7 +534,7 @@ function buildHtml() {
         <th>📁 プロジェクト</th>
         <th>📅 フェーズ / タイムライン</th>
         <th>📊 KPI / STABLE</th>
-        <th>⏱ セッション / Cron</th>
+        <th>⏱ セッション / AutoRun</th>
       </tr></thead>
       <tbody id="tbody"><tr><td colspan="4" id="empty">⏳ データを読み込んでいます...</td></tr></tbody>
     </table>
@@ -549,7 +549,7 @@ function buildHtml() {
       ? '<span class="tag tag-windows">🪟 Windows</span>'
       : '';
     const cronBadge = p.hasCron
-      ? '<span class="tag tag-cron">⏰ Cron</span>'
+      ? '<span class="tag tag-cron">⏰ AutoRun</span>'
       : '';
     const privBadge = p.hasGithub
       ? (p.githubPrivate
@@ -578,18 +578,18 @@ function buildHtml() {
       (desc ? desc : '') +
       '<div style="margin-top:3px;display:flex;gap:8px;align-items:center">' + windowsPath + regDate + '</div>';
 
-    // ─── Cron 未登録: 簡易行 ───────────────────────────────────────
+    // ─── AutoRun 未登録: 簡易行 ───────────────────────────────────────
     if (!p.hasCron) {
       return '<tr class="no-cron">' +
         '<td>' + projCell + '</td>' +
         '<td colspan="3" class="no-cron-info">' +
           '<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;color:#64748b;font-size:12px">' +
-          '⏰ Cron 未登録 — 詳細情報なし</span>' +
+          '⏰ AutoRun 未登録 — 詳細情報なし</span>' +
         '</td>' +
         '</tr>';
     }
 
-    // ─── Cron 登録済み: フル表示 ──────────────────────────────────
+    // ─── AutoRun 登録済み: フル表示 ──────────────────────────────────
     // ② フェーズ / タイムライン列
     let timelineCell = '<span class="muted">登録日未設定</span>';
     if (t) {
@@ -627,7 +627,7 @@ function buildHtml() {
     const mode = '<span class="tag">' + (p.phaseMode || 'dev') + '</span>';
     const kpiCell = '<div style="display:grid;gap:3px">' + [mode, ci, tst, blk, stable].join('') + '</div>';
 
-    // ④ セッション / Cron 列
+    // ④ セッション / AutoRun 列
     let sessStatus = '<span class="muted">記録なし</span>';
     let sessTime   = '';
     if (p.session) {
@@ -669,12 +669,12 @@ function buildHtml() {
           tbody.innerHTML = '<tr><td colspan="4" id="empty">📭 表示できるプロジェクトがありません<br>' +
             '<small>registered-projects.json または github-registry.json にプロジェクトを登録してください</small></td></tr>';
         } else {
-          // Cron 登録あり → 上部、なし → 下部
+          // AutoRun 登録あり → 上部、なし → 下部
           const cron   = data.projects.filter(p => p.hasCron);
           const noCron = data.projects.filter(p => !p.hasCron);
           let html = '';
           if (cron.length) {
-            html += '<tr class="section-row"><td colspan="4" class="section-label">⏰ Cron 登録済み（' + cron.length + ' 件）— フル表示</td></tr>';
+            html += '<tr class="section-row"><td colspan="4" class="section-label">⏰ AutoRun 登録済み（' + cron.length + ' 件）— フル表示</td></tr>';
             html += cron.map(renderRow).join('');
           }
           if (noCron.length) {
@@ -1355,16 +1355,14 @@ function handleSystemHealth(res) {
   // Dashboard service status (Windows Task Scheduler)
   try {
     let st = 'NotRegistered';
-    try {
-      const o = execSync('systemctl --user is-active claudeos-dashboard.service 2>/dev/null', { encoding: 'utf8', timeout: 1500 });
-      const v = o.trim();
-      if (v === 'active') st = 'Running';
-      else if (v) st = v;
-    } catch {
+    if (process.platform === 'win32') {
       try {
-        const cr = execSync('crontab -l 2>/dev/null | grep -c serve-dashboard.js', { encoding: 'utf8', timeout: 1500 });
-        if (parseInt(cr.trim(), 10) > 0) st = 'CronRegistered';
-      } catch { /* no cron entry */ }
+        const out = execSync('schtasks /Query /TN "ClaudeOS Dashboard" /FO LIST', { encoding: 'utf8', timeout: 2000 });
+        if (/Status:\s*Running/i.test(out)) st = 'Running';
+        else if (/TaskName:\s*\\?ClaudeOS Dashboard/i.test(out)) st = 'Registered';
+      } catch { /* no task */ }
+    } else {
+      st = 'UnsupportedPlatform';
     }
     c.dashboardTaskState = st;
   } catch { c.dashboardTaskState = 'Unknown'; }

@@ -75,4 +75,6 @@ npm run lint:pester
 ```
 
 See [docs/WINDOWS-OPERATIONS.md](docs/WINDOWS-OPERATIONS.md) for the Windows
-architecture, registry format, and migration notes.
+architecture and registry format. See
+[docs/windows-migration-audit.md](docs/windows-migration-audit.md) for the
+current release-readiness audit and remaining migration work.

@@ -2,6 +2,12 @@
 
 # CHANGELOG
 
+> Windows fork note: this changelog includes upstream
+> `ClaudeCode-StartUpTools-New` Linux/SSH/tmux history for migration evidence.
+> The current Windows runtime is defined by `README.md`, `CLAUDE.md`,
+> `AGENTS.md`, `config/config.json.template`, and
+> `docs/windows-migration-audit.md`.
+
 ## [v3.4.9] - 2026-06-04 — 全プロセス統合 Supervisor daemon 新設 + Windows ローカル一本化完全移行
 
 ### 🎯 概要

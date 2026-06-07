@@ -1,5 +1,10 @@
 # ClaudeCode-StartUpTools-New Onboarding
 
+> Windows fork note: this file is retained as upstream source-history evidence.
+> It may mention Linux cron, SSH, tmux, and old repository names. Do not use it
+> as current Windows operating guidance. Use `README.md`, `CLAUDE.md`,
+> `AGENTS.md`, and `docs/WINDOWS-OPERATIONS.md` for the active runtime.
+
 > このファイルは `/team-onboarding` により自動生成されます。
 > 手動編集は次回実行時に上書きされます。恒久的な記述は `CLAUDE.md` または `docs/` に配置してください。
 

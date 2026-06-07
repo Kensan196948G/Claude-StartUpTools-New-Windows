@@ -477,7 +477,7 @@ const NAV_ITEMS = [
   { id:"jobs",      icon:"⚙️", label:"Jobs" },
   { id:"health",    icon:"🔎", label:"健全性" },
   { id:"cicd",      icon:"⚡", label:"CI / GitHub" },
-  { id:"cron",      icon:"🕐", label:"Cron管理" },
+  { id:"cron",      icon:"🕐", label:"AutoRun管理" },
   { id:"boot",      icon:"🚀", label:"Boot Sequence" },
   { id:"log",       icon:"📜", label:"イベントログ" },
   { id:"supervisor",icon:"🔭", label:"Supervisor" },
@@ -525,7 +525,7 @@ window.SideNav = SideNav;
 // ─── Phase badge colors ───────────────────────────────
 const PHASE_COLORS = { Build:'#2563eb', Quality:'#16a34a', Stabilize:'#d97706', Release:'#dc2626' };
 
-// ─── Project row (Cron登録あり — フル表示) ─────────────
+// ─── Project row (AutoRun登録あり — フル表示) ─────────────
 const ProjRowFull = ({ p }) => {
   const t = p.timeline;
   const kpi = p.kpi || {};
@@ -588,7 +588,7 @@ const ProjRowFull = ({ p }) => {
     </div>
   );
 
-  // Col 4 — Session / Cron (real-time elapsed counter)
+  // Col 4 — Session / AutoRun (real-time elapsed counter)
   const [nowMs, setNowMs] = React.useState(Date.now());
   React.useEffect(() => {
     if (!p.session?.start_time || p.session?.status !== "running") return;
@@ -615,7 +615,7 @@ const ProjRowFull = ({ p }) => {
         <div style={{ fontWeight:700, fontSize:13, color:MC.text, marginBottom:3 }}>{p.name}</div>
         <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:4 }}>
           {p.hasWindows && <Tag color={MC.green} bg={MC.green+"18"}>🪟 Windows</Tag>}
-          {p.hasCron   && <Tag color={MC.amber}  bg={MC.amber+"18"}>⏰ Cron</Tag>}
+          {p.hasCron   && <Tag color={MC.amber}  bg={MC.amber+"18"}>⏰ AutoRun</Tag>}
           {p.hasGithub && <Tag color={p.githubPrivate ? MC.textMuted : MC.green}>{p.githubPrivate ? "Private" : "Public"}</Tag>}
           {p.githubLanguage && <Tag color={MC.purple}>{p.githubLanguage}</Tag>}
         </div>
@@ -651,7 +651,7 @@ const ProjRowFull = ({ p }) => {
   );
 };
 
-// ─── Project row (Cron未登録 — 簡易表示) ──────────────
+// ─── Project row (AutoRun未登録 — 簡易表示) ──────────────
 const ProjRowSimple = ({ p }) => {
   const td = { padding:"10px 14px", borderBottom:`1px solid ${MC.border}12`, verticalAlign:"middle" };
   return (
@@ -675,7 +675,7 @@ const ProjRowSimple = ({ p }) => {
       </td>
       <td colSpan={3} style={td}>
         <span style={{ background:MC.bgCard, border:`1px solid ${MC.border}`, borderRadius:6, padding:"3px 12px", fontSize:11, color:MC.textMuted }}>
-          ⏰ Cron 未登録 — 詳細情報なし
+          ⏰ AutoRun 未登録 — 詳細情報なし
         </span>
       </td>
     </tr>
@@ -686,7 +686,7 @@ const ProjRowSimple = ({ p }) => {
 const ProjectsPanel = () => {
   const [projData, setProjData] = React.useState({ projects:[], generated:null });
   const [loading, setLoading]   = React.useState(true);
-  const [filter, setFilter]     = React.useState("cron"); // デフォルト: Cronのみ（簡易表示は除外）
+  const [filter, setFilter]     = React.useState("cron"); // デフォルト: AutoRunのみ（簡易表示は除外）
 
   const fetchData = React.useCallback(() => {
     fetch('/api/data')
@@ -709,7 +709,7 @@ const ProjectsPanel = () => {
     filter==="other"  ? otherPs :
     filter==="windows" ? all.filter(p => p.hasWindows) :
     filter==="github" ? all.filter(p => p.hasGithub) :
-    cronPs; // "all" でもデフォルトは Cron 登録済みのみ（簡易表示は "other" フィルタで別途表示）
+    cronPs; // "all" でもデフォルトは AutoRun 登録済みのみ（簡易表示は "other" フィルタで別途表示）
 
   const secHdr = (label, count) => (
     <tr>
@@ -728,7 +728,7 @@ const ProjectsPanel = () => {
       <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
         {[
           { label:"全プロジェクト", v:all.length,                              c:MC.accent,  id:"all"   },
-          { label:"Cron 稼働中",   v:cronPs.length,                           c:MC.green,   id:"cron"  },
+          { label:"AutoRun 稼働中", v:cronPs.length,                           c:MC.green,   id:"cron"  },
           { label:"簡易表示",      v:otherPs.length,                          c:MC.textMuted,id:"other" },
           { label:"Windows",       v:all.filter(p=>p.hasWindows).length,      c:MC.cyan,    id:"windows" },
           { label:"GitHub",        v:all.filter(p=>p.hasGithub).length,       c:MC.purple,  id:"github" },
@@ -766,7 +766,7 @@ const ProjectsPanel = () => {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
               <thead>
                 <tr>
-                  {["📁 プロジェクト","📅 フェーズ / タイムライン","📊 KPI / STABLE","⏱ セッション / Cron"].map(h => (
+                  {["📁 プロジェクト","📅 フェーズ / タイムライン","📊 KPI / STABLE","⏱ セッション / AutoRun"].map(h => (
                     <th key={h} style={{
                       position:"sticky", top:0, zIndex:1,
                       padding:"10px 14px", textAlign:"left", fontSize:11, fontWeight:700,
@@ -785,7 +785,7 @@ const ProjectsPanel = () => {
                 ) : (
                   <>
                     {cronPs.length > 0 && (
-                      <>{secHdr("⏰ Cron 登録済み — フル表示", cronPs.length)}
+                      <>{secHdr("⏰ AutoRun 登録済み — フル表示", cronPs.length)}
                         {cronPs.map(p => <ProjRowFull key={p.name} p={p} />)}</>
                     )}
                     {otherPs.length > 0 && (
@@ -1483,7 +1483,7 @@ function SystemHealthPanel() {
         </summary>
         <div style={{ marginTop:8, padding:12, background:MC.bgPanel, borderRadius:6, fontSize:11, color:MC.textMuted, lineHeight:2 }}>
           {[
-            '🔄 Cron dry-run 結果と実 crontab の差分（Phase 3）',
+            '🔄 AutoRun dry-run 結果と Task Scheduler 登録状態の差分（Phase 3）',
             '🔐 WebUI 権限プロファイル（Phase 5）',
             '💾 ジョブ実行履歴のファイル永続化',
             '📦 package.json 生成（Node 依存管理の正規化）',
@@ -1698,7 +1698,7 @@ window.CICDPanel = CICDPanel;
   </script>
 
   <!-- ═══════════════════════════════════════════════════
-       BLOCK 7: Cron Scheduler Panel
+       BLOCK 7: AutoRun Scheduler Panel
   ═══════════════════════════════════════════════════ -->
   <script type="text/babel">
 const DOW_JP = ["日","月","火","水","木","金","土"];
@@ -1789,7 +1789,7 @@ function formatNextRunDisplay(nextRunStr, expr) {
   return "—";
 }
 
-// ── CronRegisterModal — 新規登録フォーム ─────────────────────────────────
+// ── AutoRunRegisterModal — 新規登録フォーム ─────────────────────────────────
 function CronRegisterModal({ onClose, onRegistered }) {
   const [form, setForm] = React.useState({
     project: '',
@@ -1818,8 +1818,8 @@ function CronRegisterModal({ onClose, onRegistered }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9000 }}>
       <div style={{ background:MC.bgPanel, border:`1px solid ${MC.border}`, borderRadius:8, padding:24, width:420, fontFamily:MC.font }}>
-        <h3 style={{ margin:'0 0 16px', color:MC.text, fontSize:14 }}>🕐 Cron スケジュール新規登録</h3>
-        <p style={{ margin:'0 0 12px', fontSize:11, color:MC.textMuted }}>⚠️ ローカル台帳への追加のみ。実 crontab への反映はCLI [14] を実行してください。</p>
+        <h3 style={{ margin:'0 0 16px', color:MC.text, fontSize:14 }}>🕐 AutoRun スケジュール新規登録</h3>
+        <p style={{ margin:'0 0 12px', fontSize:11, color:MC.textMuted }}>⚠️ ローカル台帳への追加のみ。Task Scheduler 反映は CLI [14] を実行してください。</p>
         {[
           { label:'プロジェクト名', key:'project', type:'text', placeholder:'MyProject' },
           { label:'開始時刻 (HH:MM)', key:'time', type:'text', placeholder:'09:00' },
@@ -1930,9 +1930,9 @@ const CronPanel = ({ liveData }) => {
         {delConfirm && (
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9000 }}>
             <div style={{ background:MC.bgPanel, border:`1px solid ${MC.red}`, borderRadius:8, padding:24, width:360 }}>
-              <h3 style={{ color:MC.red, margin:'0 0 12px' }}>🗑 Cron 登録削除</h3>
+              <h3 style={{ color:MC.red, margin:'0 0 12px' }}>🗑 AutoRun 登録削除</h3>
               <p style={{ color:MC.text, fontSize:13 }}>「{delConfirm.project}」をローカル台帳から削除しますか？</p>
-              <p style={{ color:MC.textMuted, fontSize:11 }}>実 crontab は変更されません。CLI [14] で別途削除してください。</p>
+              <p style={{ color:MC.textMuted, fontSize:11 }}>Task Scheduler は変更されません。CLI [14] で別途削除してください。</p>
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
                 <button onClick={() => setDelConfirm(null)} style={{ padding:'6px 16px', borderRadius:4, border:`1px solid ${MC.border}`, background:'transparent', color:MC.textDim, cursor:'pointer' }}>キャンセル</button>
                 <button onClick={() => handleDelete(delConfirm.id, delConfirm.project)} style={{ padding:'6px 16px', borderRadius:4, border:'none', background:MC.red, color:'#fff', fontWeight:600, cursor:'pointer' }}>削除</button>
@@ -1941,10 +1941,10 @@ const CronPanel = ({ liveData }) => {
           </div>
         )}
 
-        <Panel title="Cronスケジュール一覧" icon="🕐" headerRight={
+        <Panel title="AutoRunスケジュール一覧" icon="🕐" headerRight={
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:10, color:MC.amber, fontFamily:MC.mono, border:`1px solid ${MC.amber}44`, borderRadius:3, padding:"2px 7px" }}>
-              ⚠️ 台帳のみ — crontab反映はCLI [14]
+              ⚠️ 台帳のみ — Task Scheduler反映はCLI [14]
             </span>
             <button onClick={() => setShowAdd(true)} style={{
               padding:"4px 12px", borderRadius:4, border:`1px solid ${MC.accent}`,
@@ -2019,7 +2019,7 @@ const CronPanel = ({ liveData }) => {
                   <td style={{ padding:"8px 6px" }}>
                     <button
                       onClick={() => s._id && setDelConfirm({ id: s._id, project: s.project })}
-                      title={s._id ? "台帳から削除（実crontabは変更なし）" : "IDなし（削除不可）"}
+                      title={s._id ? "台帳から削除（Task Schedulerは変更なし）" : "IDなし（削除不可）"}
                       style={{
                         display:"inline-block", padding:"3px 7px", borderRadius:3,
                         border:`1px solid ${s._id ? '#f6644444' : MC.border}`,
@@ -2069,7 +2069,7 @@ const CronPanel = ({ liveData }) => {
             </div>
           </Panel>
 
-          <Panel title="Cron設定" icon="⚙️">
+          <Panel title="AutoRun設定" icon="⚙️">
             <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:12 }}>
               {[
                 ["実行時間","300分 (5h)",false],
@@ -2089,7 +2089,7 @@ const CronPanel = ({ liveData }) => {
           {showAdd && (
             <Panel title="新規スケジュール登録" icon="➕">
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {[["プロジェクト","project-name"],["ホスト","localhost"],["cron式","0 9 * * 1-6"],["実行時間(分)","300"]].map(([l,p]) => (
+                {[["プロジェクト","project-name"],["ホスト","localhost"],["スケジュール式","0 9 * * 1-6"],["実行時間(分)","300"]].map(([l,p]) => (
                   <div key={l}>
                     <div style={{ fontSize:11, color:MC.textMuted, marginBottom:4 }}>{l}</div>
                     <input placeholder={p} style={{ width:"100%", padding:"6px 10px", borderRadius:4, border:`1px solid ${MC.border}`, background:MC.bgCard, color:MC.text, fontSize:11, fontFamily:MC.mono, outline:"none", boxSizing:"border-box" }}
@@ -2276,11 +2276,11 @@ const BootPanel = ({ state, liveData }) => {
         </Panel>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-        {/* ── Active Cron Session Panel ── */}
-        <Panel title="アクティブCronセッション" icon="🚀">
+        {/* ── Active AutoRun Session Panel ── */}
+        <Panel title="アクティブAutoRunセッション" icon="🚀">
           {(() => {
             const cron = proj.activeCron;
-            if (!cron) return <div style={{ color:MC.textMuted, fontSize:11 }}>Cronデータ取得中...</div>;
+            if (!cron) return <div style={{ color:MC.textMuted, fontSize:11 }}>AutoRunデータ取得中...</div>;
             const elH = Math.floor(cron.sessionElapsedMin / 60);
             const elM = cron.sessionElapsedMin % 60;
             const elapsedStr = elH > 0 ? `${elH}h ${elM}m` : `${elM}m`;
@@ -2289,7 +2289,7 @@ const BootPanel = ({ state, liveData }) => {
               <div style={{ display:"flex", flexDirection:"column", gap:8, fontSize:11 }}>
                 {/* プロジェクト名 */}
                 <div>
-                  <div style={{ fontSize:9, color:MC.textMuted, marginBottom:2 }}>📌 稼働中プロジェクト（Cron）</div>
+                  <div style={{ fontSize:9, color:MC.textMuted, marginBottom:2 }}>📌 稼働中プロジェクト（AutoRun）</div>
                   <div style={{ fontFamily:MC.mono, color: cron.isRunning ? MC.green : MC.accent, fontWeight:700, fontSize:12, wordBreak:"break-all" }}>
                     {cron.project}
                   </div>
