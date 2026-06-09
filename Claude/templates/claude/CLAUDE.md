@@ -1281,3 +1281,48 @@ AI IDE ではない。AI 開発組織そのもの。
 Agent Teams で並列に動き、Agent View で監視する。
 固定ループではなく、状況に応じて最適解を自律選択する。
 ```
+
+---
+
+## 📌 32. Goal Rotation（フェーズローテーション / v10.6 追加）
+
+AutoRun（無人運用）は Monitor / Development / Verify / Improvement の 4 フェーズを
+**常設の役割ゴール** として巡回します。`/goal` はセッション内から再発行できないため、
+フェーズ切替は launcher（`Start-ClaudeAutoTimeout.ps1`）のセッション再起動で実現します。
+
+### 32.1 実行モデル
+
+```text
+state.json goal_rotation.current
+↓
+launcher が .claude/goal/<NN-phase>.md を /goal として注入（4000字検証付き）
+↓
+セッション: フェーズの Scope 内のみ作業
+↓
+Completion Criteria 充足 → goal_rotation.phase_done=true を書き
+reports/handoff/<UTC日時>-<phase>.md に Session Handoff Summary を出力して終了
+↓
+launcher finalize（goal-rotation.js）がポインタ前進 → supervisor が次フェーズで再起動
+↺ improvement → monitor で cycle_count++
+```
+
+### 32.2 セッション内での義務（phase モード時）
+
+| 項目 | 内容 |
+|---|---|
+| 🎯 Scope 厳守 | 注入された /goal の Out of Scope に踏み出さない |
+| ✅ 前進の契約 | Completion Criteria 充足時のみ `goal_rotation.phase_done=true` を書く |
+| 📝 Handoff | `reports/handoff/<UTC日時>-<phase>.md` に Session Handoff Summary を必ず出力する |
+| ⚠️ 未達時 | phase_done を書かずに終了する（launcher が同フェーズを最大2回リトライ後、強制前進+warning） |
+| 🚨 根拠なき完了禁止 | 検証せずに phase_done=true を書かない（Verification First） |
+
+### 32.3 モード切替
+
+| 操作 | 方法 |
+|---|---|
+| 🔁 phase（AutoRun 既定） | `state.json` の `goal_rotation.mode = "phase"` |
+| 🗂️ mission（従来動作） | `goal_rotation.mode = "mission"`（START_PROMPT.md の一括 /goal に戻る） |
+| 🛠️ 手動セッションでの巡回 | ミッション /goal のまま `/loop 45m /phase-loop` を使用 |
+| 🧯 blocked 解除 | `goal_rotation.blocked = false`（on_retry_exhausted=block 採用時のみ発生） |
+
+参照: `.claude/goal/README.md`（ローテーション仕様・命名規則・字数制約）

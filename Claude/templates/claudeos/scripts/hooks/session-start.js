@@ -107,6 +107,44 @@ if (blocked.length > 0) {
   lines.push(`  blocked_issues: ${blocked.map(b => (typeof b === "object" ? b.issue || b : b)).join(", ")}`);
 }
 
+// v10.6 Goal Rotation: ローテーション状態と直近の強制前進警告を提示する。
+// phase モードでは「現フェーズの Completion Criteria 充足時に goal_rotation.phase_done=true を
+// 書いて終了する」が前進の唯一の契約であることを毎セッション明示する。
+const rot = state.goal_rotation || null;
+if (rot && rot.mode === "phase") {
+  lines.push(
+    `  goal_rotation: 🔁 phase=${rot.current || "monitor"} cycle=${rot.cycle_count ?? 0} retry=${rot.retry_count ?? 0}/${rot.max_retries ?? 2} last_outcome=${rot.last_outcome || "(none)"}`
+  );
+  lines.push(
+    "  goal_rotation_contract: フェーズの Completion Criteria 充足時に state.json の goal_rotation.phase_done=true を書き、reports/handoff/<UTC日時>-<phase>.md に Session Handoff Summary を出力して終了すること"
+  );
+  const forced = (state.warnings || []).filter((w) => w.kind === "goal_rotation_forced_advance").slice(-1)[0];
+  if (forced) {
+    lines.push(`  goal_rotation_warning: ⚠️ 前回 ${forced.phase || "?"} フェーズが未達のまま強制前進 — 未達項目を本セッションで考慮すること`);
+  }
+} else if (rot && rot.mode === "mission") {
+  lines.push("  goal_rotation: mission モード (従来のミッション一括 /goal)");
+}
+
+// v10.6: 直近の Session Handoff Summary (reports/handoff/) を注入する。
+// フェーズ分割セッションの引き継ぎ正本。≤1500 字に切り詰めて context 圧迫を防ぐ。
+try {
+  const handoffDir = path.join(process.cwd(), "reports", "handoff");
+  if (fs.existsSync(handoffDir)) {
+    const latest = fs.readdirSync(handoffDir)
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .slice(-1)[0];
+    if (latest) {
+      const raw = fs.readFileSync(path.join(handoffDir, latest), "utf8");
+      const clipped = raw.length > 1500 ? raw.slice(0, 1500) + "\n…(truncated)" : raw;
+      lines.push("");
+      lines.push(`[Session Handoff] 直近の引き継ぎ (reports/handoff/${latest}):`);
+      clipped.split(/\r?\n/).forEach((l) => lines.push(`  ${l}`));
+    }
+  }
+} catch { /* fail-soft */ }
+
 // v9.0: 週次フェーズ表示
 const wp = calcWeekPhase(project.start_date);
 if (wp) {

@@ -94,6 +94,113 @@ Describe 'Start-ClaudeAutoTimeout -DryRun' {
     }
 }
 
+Describe 'Goal Rotation (v10.6) - DryRun でのフェーズ選択' {
+
+    BeforeAll {
+        # 出力もキャプチャするヘルパ (goal_source= 等の DryRun 出力を検証する)。
+        function Invoke-AutoTimeoutCapture {
+            param([string[]]$ScriptArgs)
+            $output = & $script:PsExe -NoProfile -ExecutionPolicy Bypass -File $script:ScriptPath @ScriptArgs 2>&1 | Out-String
+            return @{ ExitCode = $LASTEXITCODE; Output = $output }
+        }
+    }
+
+    It 'state.json あり (goal_rotation 未定義) → 既定 phase モードで monitor を選択する' {
+        $proj = Join-Path $TestDrive 'projects-rot-default'
+        $pdir = Join-Path $proj 'rotapp'
+        New-Item -ItemType Directory -Path $pdir -Force | Out-Null
+        @{ execution = @{ phase = 'Monitor' } } | ConvertTo-Json -Depth 5 |
+            Set-Content -Path (Join-Path $pdir 'state.json') -Encoding UTF8
+        $sess = Join-Path $TestDrive 'sessions-rot-default'
+
+        $r = Invoke-AutoTimeoutCapture @('-Project', 'rotapp', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        $r.ExitCode | Should -Be 0
+        $r.Output   | Should -Match 'goal_source=phase:monitor'
+        # DryRun は state.json を変更しない (catchup スキップ契約)
+        $stateAfter = Get-Content (Join-Path $pdir 'state.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $stateAfter.PSObject.Properties['goal_rotation'] | Should -BeNullOrEmpty
+    }
+
+    It 'goal_rotation.current=verify → 30-verify.md を選択する' {
+        $proj = Join-Path $TestDrive 'projects-rot-verify'
+        $pdir = Join-Path $proj 'vapp'
+        New-Item -ItemType Directory -Path $pdir -Force | Out-Null
+        @{ goal_rotation = @{ mode = 'phase'; current = 'verify'; cycle_count = 2 } } |
+            ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $pdir 'state.json') -Encoding UTF8
+        $sess = Join-Path $TestDrive 'sessions-rot-verify'
+
+        $r = Invoke-AutoTimeoutCapture @('-Project', 'vapp', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        $r.ExitCode | Should -Be 0
+        $r.Output   | Should -Match 'goal_source=phase:verify'
+        $r.Output   | Should -Match 'cycle=2'
+    }
+
+    It 'goal_rotation.mode=mission → 従来の START_PROMPT 経路を使う' {
+        $proj = Join-Path $TestDrive 'projects-rot-mission'
+        $pdir = Join-Path $proj 'mapp2'
+        New-Item -ItemType Directory -Path $pdir -Force | Out-Null
+        @{ goal_rotation = @{ mode = 'mission' } } | ConvertTo-Json -Depth 5 |
+            Set-Content -Path (Join-Path $pdir 'state.json') -Encoding UTF8
+        $sess = Join-Path $TestDrive 'sessions-rot-mission'
+
+        $r = Invoke-AutoTimeoutCapture @('-Project', 'mapp2', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        $r.ExitCode | Should -Be 0
+        $r.Output   | Should -Match 'goal_source=mission'
+    }
+
+    It 'maintenance モード → phase を mission に縮退する' {
+        $proj = Join-Path $TestDrive 'projects-rot-maint'
+        $pdir = Join-Path $proj 'mtapp'
+        New-Item -ItemType Directory -Path $pdir -Force | Out-Null
+        @{
+            project       = @{ phase_mode = 'maintenance' }
+            maintenance   = @{ session_max_minutes = 120 }
+            goal_rotation = @{ mode = 'phase'; current = 'development' }
+        } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $pdir 'state.json') -Encoding UTF8
+        $sess = Join-Path $TestDrive 'sessions-rot-maint'
+
+        $r = Invoke-AutoTimeoutCapture @('-Project', 'mtapp', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        $r.ExitCode | Should -Be 0
+        $r.Output   | Should -Match 'goal_source=mission'
+        $r.Output   | Should -Match 'rotation_mode=mission'
+    }
+
+    It 'state.json 無し → mission のまま (フレッシュプロジェクト安全側)' {
+        $proj = Join-Path $TestDrive 'projects-rot-fresh'
+        New-Item -ItemType Directory -Path (Join-Path $proj 'fresh') -Force | Out-Null
+        $sess = Join-Path $TestDrive 'sessions-rot-fresh'
+
+        $r = Invoke-AutoTimeoutCapture @('-Project', 'fresh', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        $r.ExitCode | Should -Be 0
+        $r.Output   | Should -Match 'goal_source=mission'
+    }
+
+    It 'goal/ テンプレがプロジェクト .claude\goal へ自己同期される' {
+        $proj = Join-Path $TestDrive 'projects-rot-sync'
+        $pdir = Join-Path $proj 'syncapp'
+        New-Item -ItemType Directory -Path $pdir -Force | Out-Null
+        $sess = Join-Path $TestDrive 'sessions-rot-sync'
+
+        $null = Invoke-AutoTimeoutCapture @('-Project', 'syncapp', '-DryRun',
+            '-ProjectsDir', $proj, '-SessionsDir', $sess)
+
+        foreach ($f in @('10-monitor.md', '20-development.md', '30-verify.md', '40-improvement.md')) {
+            Test-Path (Join-Path $pdir ".claude\goal\$f") | Should -BeTrue
+        }
+        Test-Path (Join-Path $pdir '.claude\claudeos\scripts\hooks\goal-rotation.js') | Should -BeTrue
+    }
+}
+
 Describe 'SessionTabManager timeout status (Phase 1 拡張)' {
 
     BeforeAll {
