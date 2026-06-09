@@ -20,6 +20,16 @@ const path = require("path");
 
 const STATE_FILE = path.join(process.cwd(), "state.json");
 
+// 出力アイコン規約（必須）: モデル既定の「絵文字控えめ」挙動を上書きするため、
+// 毎セッション additionalContext で強制注入する。CLAUDE.md §3 と対。
+// fresh / 通常の両出力経路で必ず注入すること（新規プロジェクトでも効かせるため）。
+const ICON_DIRECTIVE =
+  "🎨 出力アイコン規約（必須）: この応答以降、すべての応答と Agent 発話でアイコン/emoji を多用すること。" +
+  "章見出し(## 📌)・箇条書き・表の各行・ステータス・役割ラベルにアイコンを付け、アイコン無しのプレーンな応答は避ける。" +
+  "役割ラベルは [👔 CTO] [💻 Developer] [🧪 QA] [🔒 Security] 等のアイコン付きヘッダを使う。" +
+  "Agent を spawn する際は spawn prompt に「出力にアイコン多用・役割ラベルにアイコン付与」を明記する。" +
+  "（端末が emoji 非対応のときのみ CLAUDEOS_PLAIN_OUTPUT=1 でプレーン化）";
+
 function readJson(file) {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -48,8 +58,18 @@ function calcWeekPhase(startDate) {
 
 const state = readJson(STATE_FILE);
 if (!state) {
-  // 早期 exit (fresh session): プレーン text で十分。JSON 化しない。
-  console.log("[SessionStart] state.json not found — fresh session");
+  // 早期 exit (fresh session): state は無いが、アイコン規約だけは additionalContext で必ず注入する。
+  try {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: "[SessionStart] state.json not found — fresh session\n" + ICON_DIRECTIVE,
+      },
+    }));
+  } catch {
+    // JSON 出力失敗時もプレーン text で起動を壊さない
+    console.log("[SessionStart] state.json not found — fresh session\n" + ICON_DIRECTIVE);
+  }
   process.exit(0);
 }
 
@@ -63,6 +83,9 @@ const project = state.project || {};
 // 以降の resume 情報は lines[] に集約し、末尾で additionalContext として 1 個の JSON に出力する。
 const lines = [];
 
+// 出力アイコン規約を先頭に置き、毎セッション最優先で読ませる（モデル既定の控えめ挙動を上書き）。
+lines.push(ICON_DIRECTIVE);
+lines.push("");
 lines.push("[SessionStart] ClaudeOS v9.0 resume context");
 lines.push(`  phase: ${exec.phase || "unknown"}`);
 lines.push(`  last_summary: ${exec.last_session_summary || "(none)"}`);
