@@ -11,6 +11,14 @@ import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
 
+# Windows の既定コンソール encoding (cp932 等) では emoji が UnicodeEncodeError で
+# クラッシュし statusLine が一切描画されない。出力を UTF-8 へ固定して回避する。
+# Claude Code は statusLine コマンドの stdout を UTF-8 として読み取り描画する。
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 JST = timezone(timedelta(hours=9))
 
 # ANSI color codes
