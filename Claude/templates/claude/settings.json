@@ -9,6 +9,10 @@
   },
   "includeCoAuthoredBy": true,
   "outputStyle": "Explanatory",
+  "statusLine": {
+    "type": "command",
+    "command": "python .claude/statusline.py"
+  },
   "language": "日本語",
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": true,
