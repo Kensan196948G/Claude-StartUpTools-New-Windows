@@ -170,6 +170,15 @@ function Sync-LauncherClaudeGlobalConfig {
         -TargetPath (Join-Path $ProjectDir 'CLAUDE.md') `
         -Label 'CLAUDE.md'
 
+    # START_PROMPT.md を .claude/ にも配置する。
+    # AutoRun (Start-ClaudeAutoTimeout.ps1) は .claude/START_PROMPT.md を参照するため、
+    # 対話起動 (テンプレ直接参照) との一貫性を保ち、無人実行にもテンプレ更新を反映する。
+    Sync-ProjectTemplate `
+        -TemplatePath (Join-Path $StartupRoot 'Claude\templates\claude\START_PROMPT.md') `
+        -TargetPath (Join-Path $ProjectDir '.claude\START_PROMPT.md') `
+        -Label '.claude/START_PROMPT.md' `
+        -EnsureParentDirectory
+
     # v3.2.45: Claude/templates/claudeos/ を .claude/claudeos/ の正本として一本化
     # (scripts/templates/claudeos/ は削除済み、fallback も廃止)
     Sync-ProjectTemplateDirectory `

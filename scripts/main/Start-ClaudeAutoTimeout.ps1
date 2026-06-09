@@ -173,6 +173,19 @@ Write-RunLog "[auto-timeout] $((Get-Date).ToString('o')) project=$Project durati
 # 5) START_PROMPT.md + Resume header
 # ============================================================
 $promptPath = Join-Path $projectDir '.claude\START_PROMPT.md'
+
+# テンプレ START_PROMPT.md を .claude\START_PROMPT.md へ最新化する (always overwrite)。
+# cron-launcher.sh の "Copy latest START_PROMPT template before launch" 相当。
+# AutoRun は Sync-LauncherClaudeGlobalConfig を呼ばないため、ここで明示的に同期しないと
+# テンプレ更新 (例: ClaudeOS v10.5) が無人セッションへ反映されない。
+$tmplPromptPath = Join-Path $ScriptRoot 'Claude\templates\claude\START_PROMPT.md'
+if (Test-Path $tmplPromptPath) {
+    $claudeDir = Split-Path -Parent $promptPath
+    if (-not (Test-Path $claudeDir)) { New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null }
+    Copy-Item $tmplPromptPath $promptPath -Force
+    Write-Info "START_PROMPT.md をテンプレから最新化しました: $promptPath"
+}
+
 $promptArg = ''
 if (Test-Path $promptPath) {
     $promptArg = Get-Content $promptPath -Raw -Encoding UTF8
