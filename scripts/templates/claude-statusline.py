@@ -60,13 +60,29 @@ def format_duration(ms: float) -> str:
 
 
 def format_reset_time(epoch: float | int | None) -> str:
+    # NOTE: strftime の %-I / %-d は Linux/macOS 専用拡張で Windows では ValueError。
+    # クロスプラットフォームのため 12 時間制・日付は手動整形する。
     if not epoch:
         return ""
     dt = datetime.fromtimestamp(epoch, tz=JST)
     now = datetime.now(tz=JST)
+    hour12 = dt.hour % 12 or 12
+    ampm = "AM" if dt.hour < 12 else "PM"
+    time_str = f"{hour12}{ampm}"
     if dt.date() == now.date():
-        return f"Resets {dt.strftime('%-I%p').lower()} (Asia/Tokyo)"
-    return f"Resets {dt.strftime('%b %-d')} at {dt.strftime('%-I%p').lower()} (Asia/Tokyo)"
+        return f"Resets {time_str} (Asia/Tokyo)"
+    return f"Resets {dt.strftime('%b')} {dt.day} at {time_str} (Asia/Tokyo)"
+
+
+def check_online(host: str = "1.1.1.1", port: int = 53, timeout: float = 0.3) -> bool:
+    """軽量なネット疎通チェック (DNS ポートへ短時間 TCP 接続)。失敗時は offline。"""
+    import socket
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.close()
+        return True
+    except Exception:
+        return False
 
 
 def main() -> None:
@@ -107,13 +123,19 @@ def main() -> None:
         f"{GREEN}\U0001f33f {branch}{R}",
         f"{CYAN}\U0001f5a5  {os_name}{R}",
     ]
-    print(SEP.join(line1_parts))
+    line1 = SEP.join(line1_parts)
+    line1 += f"    {GREEN}Remote Control active{R}"
+    print(line1)
 
-    # Line 2: Context % / File changes / Duration
+    # Line 2: Context % / File changes / Online / Duration
     ctx_bar = progress_bar(ctx_pct)
+    online_str = (
+        f"{GREEN}\U0001f310 online{R}" if check_online() else f"{RED}\U0001f310 offline{R}"
+    )
     line2_parts = [
         f"{BLUE}\U0001f4ca {WHITE}{ctx_pct:.0f}%{R} {ctx_bar}",
         f"{CYAN}\u270f\ufe0f  {GREEN}+{lines_added}{R}/{RED}-{lines_removed}{R}",
+        online_str,
     ]
     if duration_ms > 0:
         line2_parts.append(f"{BLUE}\u23f1  {WHITE}{format_duration(duration_ms)}{R}")
