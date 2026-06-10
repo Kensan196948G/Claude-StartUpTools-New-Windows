@@ -158,6 +158,31 @@ if ($null -ne $state) {
 $env:CLAUDEOS_GOAL_TYPE = $resumeGoalType
 Write-Info "state restored: phase=$resumePhase phase_mode=$phaseMode consecutive=$resumeConsecutive"
 
+# v10.6 Goal Rotation: フェーズローテーション設定を読む (ここでは読み取りのみ)。
+# state.json があれば既定は phase (AutoRun 標準)。state 欠損・不正値・maintenance は
+# mission (従来のミッション一括 /goal) に縮退する。
+$rotMode    = 'mission'
+$rotCurrent = 'monitor'
+$rotCycle   = 0
+$rotRetry   = 0
+$rotMax     = 2
+if ($null -ne $state) {
+    $rotMode    = [string](Get-StateValue $state 'goal_rotation.mode' 'phase')
+    $rotCurrent = [string](Get-StateValue $state 'goal_rotation.current' 'monitor')
+    $rotCycle   = [int](Get-StateValue $state 'goal_rotation.cycle_count' 0)
+    $rotRetry   = [int](Get-StateValue $state 'goal_rotation.retry_count' 0)
+    $rotMax     = [int](Get-StateValue $state 'goal_rotation.max_retries' 2)
+}
+if ($rotMode -notin @('phase', 'mission')) {
+    Write-Warn "goal_rotation.mode が不正 ('$rotMode') → mission に縮退"
+    $rotMode = 'mission'
+}
+if ($rotCurrent -notin @('monitor', 'development', 'verify', 'improvement')) { $rotCurrent = 'monitor' }
+if ($phaseMode -eq 'maintenance' -and $rotMode -eq 'phase') {
+    Write-Info 'maintenance mode: goal rotation を mission に縮退 (maintenance-loop 挙動を維持)'
+    $rotMode = 'mission'
+}
+
 # ============================================================
 # 4) session.json 生成 (SessionTabManager — Dashboard 共通スキーマ)
 # ============================================================
@@ -186,15 +211,85 @@ if (Test-Path $tmplPromptPath) {
     Write-Info "START_PROMPT.md をテンプレから最新化しました: $promptPath"
 }
 
-$promptArg = ''
-if (Test-Path $promptPath) {
-    $promptArg = Get-Content $promptPath -Raw -Encoding UTF8
+# v10.6 Goal Rotation: goal/ テンプレと goal-rotation.js を自己同期する
+# (AutoRun は Sync-LauncherClaudeGlobalConfig を呼ばないため、START_PROMPT と同様にここで同期)。
+$tmplGoalDir = Join-Path $ScriptRoot 'Claude\templates\claude\goal'
+$projGoalDir = Join-Path $projectDir '.claude\goal'
+if (Test-Path $tmplGoalDir) {
+    if (-not (Test-Path $projGoalDir)) { New-Item -ItemType Directory -Force -Path $projGoalDir | Out-Null }
+    Copy-Item (Join-Path $tmplGoalDir '*.md') $projGoalDir -Force
 }
-$maintNote = if ($phaseMode -eq 'maintenance') {
-    " [maintenance mode: max ${DurationMinutes}min, loop=maintenance-loop.md, KPI=SLA/MTTR]"
-} else { '' }
-$resumeHeader = "[Cron Session Resume] phase=$resumePhase phase_mode=$phaseMode$maintNote goal_type=$resumeGoalType consecutive_success=$resumeConsecutive last_summary=$resumeSummary`n`n"
-$promptArg = $resumeHeader + $promptArg
+$tmplRotateCli = Join-Path $ScriptRoot 'Claude\templates\claudeos\scripts\hooks\goal-rotation.js'
+$rotateCli     = Join-Path $projectDir '.claude\claudeos\scripts\hooks\goal-rotation.js'
+if (Test-Path $tmplRotateCli) {
+    $rotateCliDir = Split-Path -Parent $rotateCli
+    if (-not (Test-Path $rotateCliDir)) { New-Item -ItemType Directory -Force -Path $rotateCliDir | Out-Null }
+    Copy-Item $tmplRotateCli $rotateCli -Force
+}
+
+# phase モードの前提 (node / goal-rotation.js) が欠ける場合は mission に縮退する。
+# node が無いと finalize も実行できず同一フェーズから永遠に前進しないため。
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if ($rotMode -eq 'phase' -and (-not $nodeCmd -or -not (Test-Path $rotateCli))) {
+    Write-Warn 'phase モードの前提 (node / goal-rotation.js) が見つからない → mission に縮退'
+    $rotMode = 'mission'
+}
+
+# catchup: 前回 finalize 前にプロセスが死んだ phase_done=true の取り残しを前進消化してから
+# current を確定する (DryRun では state.json を変更しない契約のためスキップ)。
+$stateFilePath = Join-Path $projectDir 'state.json'
+if ($rotMode -eq 'phase' -and -not $DryRun -and (Test-Path $stateFilePath)) {
+    & node $rotateCli catchup --state $stateFilePath 2>&1 | ForEach-Object { Write-RunLog "[goal-rotation] $_" }
+    if ($LASTEXITCODE -eq 10) {
+        try {
+            $state = Get-Content $stateFilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $rotCurrent = [string](Get-StateValue $state 'goal_rotation.current' $rotCurrent)
+            $rotCycle   = [int](Get-StateValue $state 'goal_rotation.cycle_count' $rotCycle)
+            $rotRetry   = [int](Get-StateValue $state 'goal_rotation.retry_count' 0)
+            Write-Info "goal rotation catchup: 前回の phase_done を前進消化 → current=$rotCurrent"
+        }
+        catch { Write-Warn "catchup 後の state.json 再読込に失敗: $($_.Exception.Message)" }
+    }
+}
+
+# プロンプト構築:
+#   phase   → .claude\goal\<NN-phase>.md を読み、/goal 本文を必ず先頭に固定して
+#             rotation コンテキストを末尾に後置する (/goal 自動実行は冒頭一致が条件のため)。
+#   mission → 従来どおり START_PROMPT.md + resume header 前置 (既存挙動を変更しない)。
+$goalSource = 'mission'
+$promptArg = ''
+$phaseFileMap = @{ monitor = '10-monitor.md'; development = '20-development.md'; verify = '30-verify.md'; improvement = '40-improvement.md' }
+if ($rotMode -eq 'phase') {
+    $goalFile = Join-Path $projGoalDir $phaseFileMap[$rotCurrent]
+    if (-not (Test-Path $goalFile)) {
+        Write-Warn "goal ファイル未配置 → mission fallback: $goalFile"
+        Write-RunLog "[goal-rotation] goal file missing -> mission fallback: $goalFile"
+    }
+    else {
+        # 4000 字制限の fail-fast (超過 goal は /goal 自動実行が失敗するため起動させない)
+        & node $rotateCli validate --file $goalFile 2>&1 | ForEach-Object { Write-RunLog "[goal-rotation] $_" }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "goal ファイルが /goal 制約に違反 (4000字超過 / 非 /goal 形式): $goalFile"
+            Set-SessionStatus -SessionId $sessionId -Status 'failed' -ConfigSessionsDir $SessionsDir | Out-Null
+            Write-RunLog '[auto-timeout] goal validate failed -> abort (exit 5)'
+            exit 5
+        }
+        $promptArg = Get-Content $goalFile -Raw -Encoding UTF8
+        $promptArg += "`n`n[Goal Rotation] phase=$rotCurrent cycle=$rotCycle retry=$rotRetry/$rotMax phase_mode=$phaseMode consecutive_success=$resumeConsecutive last_summary=$resumeSummary"
+        $goalSource = "phase:$rotCurrent"
+        Write-Info "goal rotation: phase=$rotCurrent (cycle=$rotCycle retry=$rotRetry/$rotMax) source=$goalFile"
+    }
+}
+if ($goalSource -eq 'mission') {
+    if (Test-Path $promptPath) {
+        $promptArg = Get-Content $promptPath -Raw -Encoding UTF8
+    }
+    $maintNote = if ($phaseMode -eq 'maintenance') {
+        " [maintenance mode: max ${DurationMinutes}min, loop=maintenance-loop.md, KPI=SLA/MTTR]"
+    } else { '' }
+    $resumeHeader = "[Cron Session Resume] phase=$resumePhase phase_mode=$phaseMode$maintNote goal_type=$resumeGoalType consecutive_success=$resumeConsecutive last_summary=$resumeSummary`n`n"
+    $promptArg = $resumeHeader + $promptArg
+}
 
 # ============================================================
 # 6) DryRun: claude を起動せず finalize のみ (検証用)
@@ -202,6 +297,7 @@ $promptArg = $resumeHeader + $promptArg
 if ($DryRun) {
     Write-Info "[DryRun] session=$sessionId project=$projectDir duration=${DurationMinutes}m"
     Write-Info "[DryRun] prompt length=$($promptArg.Length) chars"
+    Write-Info "[DryRun] goal_source=$goalSource rotation_mode=$rotMode phase=$rotCurrent cycle=$rotCycle"
     Set-SessionStatus -SessionId $sessionId -Status 'completed' -ConfigSessionsDir $sessionsDir | Out-Null
     Write-RunLog '[auto-timeout] DryRun finished (no claude launch)'
     Write-Ok "[DryRun] session.json 生成と finalize を確認しました: $sessionId"
@@ -219,6 +315,9 @@ $env:CLAUDE_RESUME_PHASE = $resumePhase
 $env:CLAUDE_RESUME_CONSECUTIVE = "$resumeConsecutive"
 # Hook が settings.json から参照する絶対パス (サブディレクトリ起動でも解決させる)
 $env:CLAUDEOS_HOOKS_DIR = Join-Path $projectDir '.claude\claudeos\scripts\hooks'
+# v10.6 Goal Rotation: hook (session-start/end) と Claude がモード/フェーズを参照できるようにする
+$env:CLAUDEOS_GOAL_MODE  = $rotMode
+$env:CLAUDEOS_GOAL_PHASE = $rotCurrent
 
 $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
 if (-not $claudeCmd) {
@@ -254,6 +353,22 @@ catch {
 # ============================================================
 # 8) finalize
 # ============================================================
+# v10.6 Goal Rotation: ポインタ前進の正本はここ (Stop hook はタイムアウト kill 時に
+# 発火しないため launcher 側で必ず finalize する)。同一セッションの二重 finalize は
+# CLI 側の last_finalized_session 冪等ガードが防ぐ。
+if ($rotMode -eq 'phase') {
+    & node $rotateCli finalize --status $finalStatus --session $sessionId --state $stateFilePath 2>&1 |
+        ForEach-Object { Write-RunLog "[goal-rotation] $_"; Write-Info $_ }
+    $rotExit = $LASTEXITCODE
+    Write-RunLog "[auto-timeout] goal-rotation finalize exit=$rotExit (10=advanced 11=retry 12=forced-advance 13=blocked)"
+    # フェーズ完了済み (advanced) の timeout は「計画時間内に作業を終えた正常セッション」
+    # として completed/exit 0 へ正規化し、supervisor の failure 蓄積を防ぐ。
+    if ($rotExit -eq 10 -and $exitCode -eq 124) {
+        $finalStatus = 'completed'
+        $exitCode = 0
+        Write-Info 'phase 完了済み timeout → completed へ正規化'
+    }
+}
 Set-SessionStatus -SessionId $sessionId -Status $finalStatus -ConfigSessionsDir $sessionsDir | Out-Null
 Write-RunLog "[auto-timeout] session finished status=$finalStatus exit=$exitCode at $((Get-Date).ToString('o'))"
 Write-Info "session finished: status=$finalStatus exit=$exitCode"

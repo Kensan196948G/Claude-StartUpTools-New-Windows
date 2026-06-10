@@ -52,5 +52,21 @@
   "quality_gates": {
     "lint": { "warning_threshold": 10, "error_threshold": 0 },
     "coverage": { "line_min": 70, "changed_files_min": 80 }
+  },
+  "goal_rotation": {
+    "mode": "phase",
+    "current": "monitor",
+    "sequence": ["monitor", "development", "verify", "improvement"],
+    "phase_done": false,
+    "phase_done_at": null,
+    "retry_count": 0,
+    "max_retries": 2,
+    "on_retry_exhausted": "advance",
+    "blocked": false,
+    "cycle_count": 0,
+    "last_advanced_at": null,
+    "last_outcome": null,
+    "last_finalized_session": null,
+    "history": []
   }
 }

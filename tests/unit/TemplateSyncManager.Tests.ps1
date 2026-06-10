@@ -190,3 +190,36 @@ Describe 'Sync-ProjectTemplateDirectory' {
         }
     }
 }
+
+Describe 'Goal Rotation テンプレ配布 (v10.6)' {
+
+    Context 'テンプレ正本 Claude/templates/claude/goal' {
+
+        It 'フェーズ別 /goal テンプレ 5 枚と README が存在すること' {
+            $goalDir = Join-Path $script:RepoRoot 'Claude\templates\claude\goal'
+            foreach ($f in @('00-mission.md', '10-monitor.md', '20-development.md', '30-verify.md', '40-improvement.md', 'README.md')) {
+                Test-Path (Join-Path $goalDir $f) | Should -BeTrue -Because "$f はローテーション正本に必須"
+            }
+        }
+
+        It 'フェーズ別テンプレは /goal " で始まること (自動実行可能形式)' {
+            $goalDir = Join-Path $script:RepoRoot 'Claude\templates\claude\goal'
+            foreach ($f in @('00-mission.md', '10-monitor.md', '20-development.md', '30-verify.md', '40-improvement.md')) {
+                $content = Get-Content (Join-Path $goalDir $f) -Raw -Encoding UTF8
+                $content.StartsWith('/goal "') | Should -BeTrue -Because "$f が /goal `" で始まらないと自動実行されない"
+            }
+        }
+    }
+
+    Context 'Sync-LauncherClaudeGlobalConfig が .claude/goal へ配布する' {
+
+        It 'プロジェクト .claude/goal にフェーズテンプレが配布されること' {
+            $projectDir = Join-Path $TestDrive 'goal_sync_project'
+            New-Item -ItemType Directory -Path $projectDir -Force | Out-Null
+            Sync-LauncherClaudeGlobalConfig -StartupRoot $script:RepoRoot -ProjectDir $projectDir
+            foreach ($f in @('10-monitor.md', '20-development.md', '30-verify.md', '40-improvement.md')) {
+                Test-Path (Join-Path $projectDir ".claude\goal\$f") | Should -BeTrue -Because "$f が配布されないと AutoRun の phase モードが動かない"
+            }
+        }
+    }
+}

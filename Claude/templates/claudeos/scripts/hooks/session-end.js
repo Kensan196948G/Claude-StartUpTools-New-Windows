@@ -155,6 +155,17 @@ try {
       if (process.env.CLAUDEOS_DEBUG) console.error(`[SessionEnd] learning-record skipped: ${learnErr.message}`);
     }
 
+    // v10.6 Goal Rotation: phase_done の達成時刻を記録する (観測用・一度だけ)。
+    // ポインタ前進は launcher の goal-rotation.js finalize が正本のため、ここでは行わない
+    // (Stop hook は毎ターン発火し得る上、タイムアウト kill 時は発火しないため)。
+    try {
+      const rot = state.goal_rotation;
+      if (rot && rot.mode === "phase" && rot.phase_done === true && !rot.phase_done_at) {
+        rot.phase_done_at = new Date().toISOString();
+        console.log(`[SessionEnd][GoalRotation] ✅ phase_done: ${rot.current} (前進判定は launcher finalize が実施)`);
+      }
+    } catch { /* fail-soft */ }
+
     writeJsonAtomic(STATE_FILE, state);
     console.log("[SessionEnd] state.json updated (last_stop_at + learning recorded)");
 

@@ -220,5 +220,21 @@
     "cooldown_seconds": 30,
     "crash_loop_threshold": 3,
     "crash_loop_min_seconds": 120
+  },
+  "goal_rotation": {
+    "mode": "phase",
+    "current": "monitor",
+    "sequence": ["monitor", "development", "verify", "improvement"],
+    "phase_done": false,
+    "phase_done_at": null,
+    "retry_count": 0,
+    "max_retries": 2,
+    "on_retry_exhausted": "advance",
+    "blocked": false,
+    "cycle_count": 0,
+    "last_advanced_at": null,
+    "last_outcome": null,
+    "last_finalized_session": null,
+    "history": []
   }
 }

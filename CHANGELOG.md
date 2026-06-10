@@ -8,6 +8,58 @@
 > `AGENTS.md`, `config/config.json.template`, and
 > `docs/windows-migration-audit.md`.
 
+## [v4.1.0] - 2026-06-10 — Goal Rotation: phase-based /goal cycling (ClaudeOS v10.6)
+
+### Summary
+
+- AutoRun now cycles Monitor → Development → Verify → Improvement as standing
+  per-session `/goal` payloads (`goal_rotation.mode = "phase"`, default).
+  `/goal` cannot be re-issued in-session, so phase switching is implemented via
+  launcher-driven session restarts; manual sessions keep the mission `/goal`
+  and cycle phases with `/loop 45m /phase-loop`.
+
+### Added
+
+- `Claude/templates/claude/goal/` — per-phase `/goal` payload templates
+  (`00-mission` / `10-monitor` / `20-development` / `30-verify` /
+  `40-improvement`, each validated ≤ 3,800 chars) plus `README.md`.
+- `Claude/templates/claudeos/scripts/hooks/goal-rotation.js` — single source of
+  truth CLI for rotation: `finalize` (advance/retry/forced-advance/block with
+  idempotent session guard), `catchup`, `validate` (4000-char gate),
+  `advance --manual`.
+- `Claude/templates/claudeos/commands/phase-loop.md` — `/phase-loop` command
+  for in-session phase cycling in manual (mission-mode) sessions.
+- `state.json` `goal_rotation` block (schema / example / setup template).
+- `scripts/test/test-goal-rotation.js` — 21 unit + template-contract tests,
+  wired into `npm run test:node`.
+
+### Changed
+
+- `scripts/main/Start-ClaudeAutoTimeout.ps1` — reads `goal_rotation`, self-syncs
+  `goal/` + `goal-rotation.js`, runs `catchup`, injects the phase goal file
+  (goal text first, rotation context appended; mission path unchanged),
+  fail-fasts on 4000-char violations (exit 5), exports
+  `CLAUDEOS_GOAL_MODE/PHASE`, and finalizes rotation after the session
+  (advanced + exit 124 is normalized to completed/0).
+- `scripts/lib/TemplateSyncManager.ps1` — distributes `Claude/templates/claude/goal/`
+  to `PROJECT/.claude/goal/`.
+- Hooks: `session-end.js` records `phase_done_at` only (pointer advance stays in
+  the launcher because Stop hooks fire per-turn and never on timeout kill);
+  `session-start.js` injects rotation status, the phase_done contract, and the
+  latest `reports/handoff/` summary; `verify-goal-set.js` resolves the active
+  goal from `goal_rotation`, checks per-phase keyword sets, and reports the
+  /goal character count.
+- `Claude/templates/claude/CLAUDE.md` — added §32 Goal Rotation (existing
+  v10.5 sections untouched).
+
+### Fixed
+
+- `scripts/dashboards/supervisor-daemon.js` — exit 124 (planned timeout) no
+  longer increments `failureCount`, successful exits reset the counter
+  (previously six accumulated timeouts permanently blocked a project), and
+  projects with `goal_rotation.blocked=true` are gated with reason
+  `goal-rotation-blocked` plus rotation observability in supervisor state.
+
 ## [v4.0.0] - 2026-06-07 — Windows native fork release candidate baseline
 
 ### Summary

@@ -368,6 +368,43 @@
         "crash_loop_threshold": { "type": "integer", "description": "短命セッション連続で crash-loop 停止する回数。既定 3" },
         "crash_loop_min_seconds": { "type": "integer", "description": "この秒数未満を短命セッションとみなす。既定 120" }
       }
+    },
+    "goal_rotation": {
+      "type": "object",
+      "description": "Goal Rotation (ClaudeOS v10.6)。AutoRun のフェーズローテーション状態。前進判定は launcher の goal-rotation.js finalize が正本。",
+      "properties": {
+        "mode": { "type": "string", "enum": ["phase", "mission"], "description": "phase=フェーズローテーション(AutoRun既定) / mission=従来のミッション一括 /goal" },
+        "current": { "type": "string", "enum": ["monitor", "development", "verify", "improvement"], "description": "次セッションで実行するフェーズ" },
+        "sequence": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["monitor", "development", "verify", "improvement"] },
+          "description": "巡回順序。省略時は monitor→development→verify→improvement"
+        },
+        "phase_done": { "type": "boolean", "description": "Claude が Completion Criteria 充足時に true を書く (前進の唯一の契約)" },
+        "phase_done_at": { "type": ["string", "null"], "format": "date-time", "description": "session-end.js が記録 (観測用)" },
+        "retry_count": { "type": "integer", "minimum": 0, "description": "同一フェーズの未達リトライ回数" },
+        "max_retries": { "type": "integer", "minimum": 0, "description": "リトライ上限。既定 2" },
+        "on_retry_exhausted": { "type": "string", "enum": ["advance", "block"], "description": "リトライ枯渇時の挙動。既定 advance (強制前進+warning)" },
+        "blocked": { "type": "boolean", "description": "on_retry_exhausted=block で枯渇時のみ true。supervisor が起動を停止する" },
+        "cycle_count": { "type": "integer", "minimum": 0, "description": "improvement→monitor の周回完了数" },
+        "last_advanced_at": { "type": ["string", "null"], "format": "date-time" },
+        "last_outcome": { "type": ["string", "null"], "enum": ["advanced", "retry", "forced-advance", "blocked", "crash", null] },
+        "last_finalized_session": { "type": ["string", "null"], "description": "二重 finalize 防止の冪等ガード (session.json の sessionId)" },
+        "history": {
+          "type": "array",
+          "description": "直近 20 件の遷移履歴 [{at, from, to, outcome, via}]",
+          "items": {
+            "type": "object",
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "outcome": { "type": "string" },
+              "via": { "type": "string" }
+            }
+          }
+        }
+      }
     }
   }
 }

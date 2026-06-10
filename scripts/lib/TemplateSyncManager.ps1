@@ -179,6 +179,15 @@ function Sync-LauncherClaudeGlobalConfig {
         -Label '.claude/START_PROMPT.md' `
         -EnsureParentDirectory
 
+    # v10.6 Goal Rotation: フェーズ別 /goal 本文 (goal/) を各プロジェクトへ配布する。
+    # AutoRun (Start-ClaudeAutoTimeout.ps1) が state.json の goal_rotation.current に
+    # 対応するファイルを起動プロンプトとして注入する。Start-ClaudeAutoTimeout 側でも
+    # 自己同期するが、対話起動経路との一貫性のためここでも配布する。
+    Sync-ProjectTemplateDirectory `
+        -TemplateDir (Join-Path $StartupRoot 'Claude\templates\claude\goal') `
+        -TargetDir (Join-Path $ProjectDir '.claude\goal') `
+        -Label '.claude/goal'
+
     # v3.2.45: Claude/templates/claudeos/ を .claude/claudeos/ の正本として一本化
     # (scripts/templates/claudeos/ は削除済み、fallback も廃止)
     Sync-ProjectTemplateDirectory `

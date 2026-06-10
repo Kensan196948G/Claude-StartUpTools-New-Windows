@@ -303,7 +303,27 @@ async function checkProcess(cfg) {
         nextRetryAt: null,
       };
 
+      // v10.6 Goal Rotation: blocked フラグ (on_retry_exhausted=block で枯渇) と
+      // ローテーション状態を観測する。blocked=true のプロジェクトは人間が解除するまで
+      // 再起動しない (state.json の goal_rotation.blocked=false で解除)。
+      const projState = readJsonFile(path.join(p.path || '', 'state.json'), null);
+      const rot = projState && projState.goal_rotation ? projState.goal_rotation : null;
+      if (rot) {
+        projects[projectName].goalRotation = {
+          mode: rot.mode || null,
+          current: rot.current || null,
+          cycleCount: rot.cycle_count ?? 0,
+          lastOutcome: rot.last_outcome || null,
+          blocked: rot.blocked === true,
+        };
+      }
+
       if (goal.reached || running) continue;
+      if (rot && rot.blocked === true) {
+        projects[projectName].status = 'blocked';
+        projects[projectName].reason = 'goal-rotation-blocked';
+        continue;
+      }
       if (stats.failureCount >= maxRestartsPerProject) {
         projects[projectName].status = 'blocked';
         projects[projectName].reason = 'max-restarts-per-project';
@@ -347,7 +367,11 @@ async function checkProcess(cfg) {
         stats.lastExitCode = code;
         stats.lastExitSignal = signal;
         stats.lastExitAt = new Date().toISOString();
-        if (code !== 0) stats.failureCount += 1;
+        // exit 124 は launcher の計画タイムアウト到達 (cron-launcher.sh 互換) であり
+        // 失敗ではない。また正常完了で failureCount をリセットしないと、散発的な
+        // クラッシュが長期間で 6 回蓄積して恒久 blocked になる (v10.6 で修正)。
+        if (code !== 0 && code !== 124) stats.failureCount += 1;
+        else stats.failureCount = 0;
         delete childHandles[handleKey];
         writeState();
       });
