@@ -15,10 +15,10 @@ Completion Criteria
 1) Handoff 記載の優先タスクが実装され、対応テストが追加されている
 2) ローカルで test/lint/build が通過している (security/secret scan 含む)
 3) PR が作成済み (未完成部分は Draft PR + 残課題明記)
-4) reports/handoff/<UTC日時>-development.md に Session Handoff Summary を出力済み
+4) reports/handoff/<UTC日時>-development.md に Session Handoff Summary を出力済み (各 Criteria の自己採点 Rubric ✅/⚠️/❌+理由1行 を含む)
 5) state.json の goal_rotation.phase_done=true を書き込み済み
 Session Handoff
-実装内容・変更ファイル・PR 番号・未解決事項・Verify フェーズへの検証依頼事項を簡潔に記録する。
+実装内容・変更ファイル・PR 番号・未解決事項・Verify フェーズへの検証依頼事項を簡潔に記録する。冒頭に Rubric 自己採点表を置く (根拠なき ✅ 禁止)。
 Safety
 止まらない、ただし暴走しない。同一エラー修復は3回まで。破壊的変更・Security Downgrade は禁止。実効時間上限は AutoRun ランタイムが担保する。
 Exit Condition

@@ -2650,7 +2650,12 @@ const SupervisorPanel = ({ supervisorData }) => {
                 {projectRows.map(p => (
                   <tr key={p.name} style={{ borderBottom:`1px solid ${MC.border}18` }}>
                     <td style={{ padding:'7px 10px', color:'#e5e7eb', fontWeight:600, maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.path}>{p.name}</td>
-                    <td style={{ padding:'7px 10px' }}><StatusBadge status={p.status} /></td>
+                    <td style={{ padding:'7px 10px', whiteSpace:'nowrap' }}>
+                      <StatusBadge status={p.status} />
+                      {p.waitingFor && (
+                        <span title={p.waitingFor} style={{ marginLeft:6, color:'#fbbf24', fontSize:10, fontWeight:700 }}>⏸ 入力待ち</span>
+                      )}
+                    </td>
                     <td style={{ padding:'7px 10px', color:'#9ca3af', fontFamily:'monospace', maxWidth:210, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.reason || '—'}</td>
                     <td style={{ padding:'7px 10px', color:'#9ca3af', fontFamily:'monospace' }}>{p.pid || '—'}</td>
                     <td style={{ padding:'7px 10px', color:'#9ca3af', textAlign:'center' }}>{p.restartCount ?? 0}</td>

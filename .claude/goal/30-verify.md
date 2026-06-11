@@ -15,10 +15,10 @@ Completion Criteria
 1) 対象差分の test/lint/build/CI 結果が記録されている
 2) security scan と CodeRabbit レビューが完了し Critical/High が 0 または Issue 化済み
 3) STABLE 判定 (達成/未達と連続成功カウント) が state.json に記録されている
-4) reports/handoff/<UTC日時>-verify.md に Session Handoff Summary を出力済み
+4) reports/handoff/<UTC日時>-verify.md に Session Handoff Summary を出力済み (各 Criteria の自己採点 Rubric ✅/⚠️/❌+理由1行 を含む)
 5) state.json の goal_rotation.phase_done=true を書き込み済み
 Session Handoff
-検証結果・STABLE 判定・merge 実施有無・Improvement フェーズへの改善候補 (指摘残・技術負債) を簡潔に記録する。
+検証結果・STABLE 判定・merge 実施有無・Improvement フェーズへの改善候補 (指摘残・技術負債) を簡潔に記録する。冒頭に Rubric 自己採点表を置く (根拠なき ✅ 禁止)。
 Safety
 止まらない、ただし暴走しない。未検証 merge・CI 未通過 merge は禁止。修復試行は3回まで。実効時間上限は AutoRun ランタイムが担保する。
 Exit Condition

@@ -19,6 +19,7 @@
   "promptSuggestionEnabled": true,
   "autoUpdatesChannel": "latest",
   "prefersReducedMotion": false,
+  "fallbackModel": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
   "terminal": {
     "mode": "auto"
   },
@@ -32,7 +33,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/pre-commit-gate.js",
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/pre-commit-gate.js"],
             "continueOnBlock": true
           }
         ]
@@ -44,7 +46,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/pre-compact.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/pre-compact.js"]
           }
         ]
       }
@@ -55,7 +58,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/session-start.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/session-start.js"]
           }
         ]
       }
@@ -66,7 +70,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/session-end.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/session-end.js"]
           }
         ]
       }
@@ -77,7 +82,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/usage-tracker.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/usage-tracker.js"]
           }
         ]
       },
@@ -86,7 +92,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/agent-transcript.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/agent-transcript.js"]
           }
         ]
       },
@@ -95,7 +102,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/auto-format.js",
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/auto-format.js"],
             "continueOnBlock": true
           }
         ]
@@ -105,7 +113,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/agent-teams-tracker.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/agent-teams-tracker.js"]
           }
         ]
       },
@@ -114,7 +123,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/agent-teams-tracker.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/agent-teams-tracker.js"]
           }
         ]
       }
@@ -125,7 +135,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/teammate-idle-gate.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/teammate-idle-gate.js"]
           }
         ]
       }
@@ -136,7 +147,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/task-created-gate.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/task-created-gate.js"]
           }
         ]
       }
@@ -147,7 +159,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/claudeos/scripts/hooks/task-completed-gate.js"
+            "command": "node",
+            "args": [".claude/claudeos/scripts/hooks/task-completed-gate.js"]
           }
         ]
       }

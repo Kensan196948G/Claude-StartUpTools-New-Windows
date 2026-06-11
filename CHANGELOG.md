@@ -8,6 +8,52 @@
 > `AGENTS.md`, `config/config.json.template`, and
 > `docs/windows-migration-audit.md`.
 
+## [v4.2.0] - 2026-06-11 — Claude Code 2.1.x feature adoption (ClaudeOS v10.7)
+
+### Summary
+
+- Adopts four Claude Code 2.1.139–2.1.172 features for unattended-run
+  resilience, plus a Managed-Agents-inspired "Outcomes" rubric self-grading
+  contract for phase handoffs. No architectural change: rotation advancement
+  remains owned by the launcher finalize (`goal-rotation.js`).
+
+### Added
+
+- `fallbackModel` chain (`opus-4-8 → sonnet-4-6 → haiku-4-5`) in
+  `Claude/templates/claude/settings.json` and `.claude/settings.json` —
+  model-overload no longer burns supervisor failure budget (CC 2.1.166).
+- Continuation Nudge (v10.7) in `session-end.js`: when a phase-mode AutoRun
+  session tries to end with `phase_done != true`, the Stop hook returns
+  `hookSpecificOutput.additionalContext` to prompt continuation
+  (CC 2.1.163; max `goal_rotation.max_nudges` = 2 per session, counter in
+  `goal_rotation.nudge`, logs diverted to stderr so stdout stays pure JSON).
+- `claude agents --json` observation in `supervisor-daemon.js` (CC 2.1.145/162):
+  throttled fail-soft poll (`SUPERVISOR_AGENTS_POLL_MS`, `SUPERVISOR_CLAUDE_CLI`),
+  per-project `agentSessions` / `waitingFor` exposure, `WAITING` log line, and
+  a `⏸ 入力待ち` badge in `mission-control.html`. Observation only — never
+  gates restarts.
+- Outcomes-style rubric self-grading: phase goal templates (10–40),
+  `/phase-loop`, and CLAUDE.md §32.2 now require a per-criterion
+  `✅/⚠️/❌ + reason` rubric at the top of every handoff report
+  (no unverified ✅ — Verification First).
+- `scripts/test/test-session-end-nudge.js` — 7-case nudge unit test, wired
+  into `npm run test:node`; supervisor smoke extended with agents-CLI
+  fail-soft assertions.
+
+### Changed
+
+- Hook definitions in both settings.json files rewritten to exec form
+  (`command: "node"` + `args: [...]`, CC 2.1.139) — no shell tokenization on
+  Windows.
+- `state.json` schema/example/setup template: `goal_rotation.max_nudges` and
+  `goal_rotation.nudge` added.
+
+### Decided
+
+- Managed Agents (cloud control plane) is **not** adopted: it conflicts with
+  the local Windows supervisor architecture and the human-confirmation hard
+  rules. Only the Outcomes/Dreaming concepts are borrowed locally.
+
 ## [v4.1.0] - 2026-06-10 — Goal Rotation: phase-based /goal cycling (ClaudeOS v10.6)
 
 ### Summary

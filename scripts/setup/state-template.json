@@ -62,6 +62,8 @@
     "retry_count": 0,
     "max_retries": 2,
     "on_retry_exhausted": "advance",
+    "max_nudges": 2,
+    "nudge": null,
     "blocked": false,
     "cycle_count": 0,
     "last_advanced_at": null,
