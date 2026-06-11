@@ -8,7 +8,7 @@
     "ENABLE_PROMPT_CACHING_1H": "1"
   },
   "includeCoAuthoredBy": true,
-  "outputStyle": "Explanatory",
+  "outputStyle": "Explanatory-Icons",
   "statusLine": {
     "type": "command",
     "command": "python .claude/statusline.py"

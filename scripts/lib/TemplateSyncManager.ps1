@@ -253,6 +253,14 @@ function Sync-LauncherClaudeGlobalConfig {
         -Label '.claude/statusline.py' `
         -EnsureParentDirectory
 
+    # カスタム output style (Explanatory-Icons 等) を各プロジェクトへ配布する。
+    # settings.json の outputStyle がこの名前を参照する。settings.json 自体は
+    # Initialize (初回のみ) のため、既存プロジェクトの outputStyle 切替は別途行う。
+    Sync-ProjectTemplateDirectory `
+        -TemplateDir (Join-Path $StartupRoot 'Claude\templates\claude\output-styles') `
+        -TargetDir (Join-Path $ProjectDir '.claude\output-styles') `
+        -Label '.claude/output-styles'
+
     # Phase 7D: scripts/tools/ 配下のテンプレを各プロジェクトへ配布。
     # 現状は run-ultrareview.js のみ。他の tools 配布は別 PR で都度追加する。
     Sync-ProjectTemplateDirectory `
