@@ -1,4 +1,4 @@
-﻿---
+---
 name: dev-api
 description: バックエンド実装担当。API設計・実装・DB設計・ビジネスロジック実装・バグ修正を行う。
 tools: Read, Write, Edit, Bash, Grep, Glob
@@ -17,7 +17,11 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 # DevAPI Agent
 
+Backend development agent.
+
 ## 役割
+
+バックエンド実装を担当する。
 
 - API 設計・実装
 - DB 設計

@@ -1,4 +1,4 @@
-﻿---
+---
 name: ops
 description: インフラ・デプロイ管理担当。STABLE判定後のdeploy実行、環境管理、障害検知を行う。
 tools: Read, Write, Edit, Bash, Grep, Glob
@@ -16,6 +16,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 
 # Ops Agent
+
+Infrastructure and deployment monitoring. インフラ・デプロイ管理担当。
 
 ## 役割
 
