@@ -141,6 +141,7 @@ async function run() {
       SUPERVISOR_STATE_DIR:     autoTmpDir,
       SUPERVISOR_STATE_FILE:    autoStateFile,
       SUPERVISOR_CHECK_INTERVAL_MS: '500',
+      SUPERVISOR_AGENTS_POLL_MS: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -215,6 +216,10 @@ async function run() {
       SUPERVISOR_STATE_DIR:     blkTmpDir,
       SUPERVISOR_STATE_FILE:    blkStateFile,
       SUPERVISOR_CHECK_INTERVAL_MS: '500',
+      // v10.7: `claude agents --json` 観測の fail-soft を同時検証する。
+      // 存在しない CLI 名を指定しても daemon 本体が止まらないこと。
+      SUPERVISOR_CLAUDE_CLI: 'claude-cli-definitely-missing-xyz',
+      SUPERVISOR_AGENTS_POLL_MS: '60000',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -242,6 +247,15 @@ async function run() {
     `expected goal-rotation-blocked reason, got '${blkProject.reason}'`);
   assert(blkProject.goalRotation?.blocked === true, 'goalRotation observability should expose blocked=true');
   assert(!blkProject.pid, 'blocked project should not be launched');
+
+  // v10.7: `claude agents --json` 観測 (CLI 不在でも fail-soft)
+  const blkEntry = blkState?.processes?.['registered-project-autonomy'];
+  assert(blkEntry.agentsCli, 'agentsCli observability block should be exposed');
+  assert(blkEntry.agentsCli.available === false,
+    `missing CLI must yield agentsCli.available=false, got '${blkEntry.agentsCli.available}'`);
+  assert(Array.isArray(blkProject.agentSessions), 'agentSessions should be an array');
+  assert(blkProject.waitingFor === null || blkProject.waitingFor === undefined,
+    'waitingFor should be empty when CLI is unavailable');
 
   fs.rmSync(blkTmpDir, { recursive: true, force: true });
 
@@ -291,6 +305,7 @@ async function run() {
         SUPERVISOR_STATE_DIR:     toTmpDir,
         SUPERVISOR_STATE_FILE:    toStateFile,
         SUPERVISOR_CHECK_INTERVAL_MS: '500',
+        SUPERVISOR_AGENTS_POLL_MS: '0',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

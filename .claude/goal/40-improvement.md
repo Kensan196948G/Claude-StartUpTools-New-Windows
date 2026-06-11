@@ -15,10 +15,10 @@ Completion Criteria
 1) Verify からの改善候補が解消済みまたは Issue 化済みである
 2) 変更がテストで検証されている (security/secret scan 含む)
 3) README.md と関連ドキュメントが現状と一致している
-4) reports/handoff/<UTC日時>-improvement.md に Session Handoff Summary を出力済み (1サイクル総括を含む)
+4) reports/handoff/<UTC日時>-improvement.md に Session Handoff Summary を出力済み (1サイクル総括と各 Criteria の自己採点 Rubric ✅/⚠️/❌+理由1行 を含む)
 5) state.json の goal_rotation.phase_done=true を書き込み済み
 Session Handoff
-改善内容・docs 更新箇所・残課題・次サイクル Monitor への推奨フォーカスを簡潔に記録する。
+改善内容・docs 更新箇所・残課題・次サイクル Monitor への推奨フォーカスを簡潔に記録する。冒頭に Rubric 自己採点表を置く (根拠なき ✅ 禁止)。
 Safety
 止まらない、ただし暴走しない。破壊的変更の無断実行は禁止。小さく変更し、大きく検証する。実効時間上限は AutoRun ランタイムが担保する。
 Exit Condition

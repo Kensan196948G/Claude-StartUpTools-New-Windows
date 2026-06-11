@@ -15,10 +15,10 @@ Completion Criteria
 1) オープン Issue の優先順位付けが完了している
 2) Security Critical の有無が判定・記録されている (security/secret scan 実施)
 3) 次フェーズ推奨スコープ (Issue 番号付き) が確定している
-4) reports/handoff/<UTC日時>-monitor.md に Session Handoff Summary を出力済み
+4) reports/handoff/<UTC日時>-monitor.md に Session Handoff Summary を出力済み (各 Criteria の自己採点 Rubric ✅/⚠️/❌+理由1行 を含む)
 5) state.json の goal_rotation.phase_done=true を書き込み済み
 Session Handoff
-Finished Goal / Completed Scope / Artifacts / Verification Result / Known Gaps / Recommended Next Scope を簡潔に記録し、次の Development セッションが再説明なしで着手できる状態にする。
+Finished Goal / Completed Scope / Artifacts / Verification Result / Known Gaps / Recommended Next Scope を簡潔に記録し、次の Development セッションが再説明なしで着手できる状態にする。冒頭に Rubric 自己採点表を置く (根拠なき ✅ 禁止)。
 Safety
 止まらない、ただし暴走しない。本フェーズでは実装・破壊的変更を行わない。実効時間上限は AutoRun ランタイムが担保する。
 Exit Condition

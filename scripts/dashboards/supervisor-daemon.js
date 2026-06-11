@@ -30,6 +30,13 @@ const childHandles = {};
 const projectLastStart = {};
 const projectStats = {};
 
+// v10.7: `claude agents --json` 観測キャッシュ (Agent View 統合)。
+// permission prompt 等で停止中のセッション (waitingFor) を可視化する。観測専用で、
+// 起動ゲート判定には使わない。CLI 不在・旧バージョンでも supervisor は影響を受けない。
+const AGENTS_POLL_MS  = parseInt(process.env.SUPERVISOR_AGENTS_POLL_MS || '60000', 10); // <=0 で無効化
+const AGENTS_CLI_CMD  = process.env.SUPERVISOR_CLAUDE_CLI || 'claude';
+const agentsCli = { lastPolledAt: 0, available: null, error: null, sessions: [] };
+
 // ── Logging ──────────────────────────────────────────────────────────────────
 function log(msg) {
   process.stdout.write(`${LOG_PREFIX} ${new Date().toISOString()} ${msg}\n`);
@@ -80,6 +87,85 @@ function projectGoalReached(projectPath) {
   if (phaseMode === 'maintenance') return { reached: true, reason: 'maintenance-mode' };
   if (phaseMode === 'released') return { reached: true, reason: 'released' };
   return { reached: false, reason: '' };
+}
+
+// ── `claude agents --json` poll (v10.7 / fail-soft / throttled) ──────────────
+function pollClaudeAgents() {
+  return new Promise(resolve => {
+    if (AGENTS_POLL_MS <= 0) return resolve();
+    if (Date.now() - agentsCli.lastPolledAt < AGENTS_POLL_MS) return resolve();
+    agentsCli.lastPolledAt = Date.now();
+
+    const fail = (msg) => {
+      agentsCli.available = false;
+      agentsCli.error = msg;
+      agentsCli.sessions = [];
+      resolve();
+    };
+
+    let child;
+    try {
+      child = spawn(AGENTS_CLI_CMD, ['agents', '--json'], {
+        // Windows では claude が .cmd shim の場合があるため shell 経由で解決する
+        shell: process.platform === 'win32',
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+    } catch (e) {
+      return fail(e.message);
+    }
+
+    let out = '';
+    let settled = false;
+    const timer = setTimeout(() => { try { child.kill(); } catch {} }, 15000);
+    child.stdout.on('data', d => {
+      out += d;
+      if (out.length > 4 * 1024 * 1024) { try { child.kill(); } catch {} }
+    });
+    child.on('error', e => {
+      if (settled) return; settled = true;
+      clearTimeout(timer);
+      fail(e.message);
+    });
+    child.on('exit', code => {
+      if (settled) return; settled = true;
+      clearTimeout(timer);
+      if (code !== 0) return fail(`exit ${code}`);
+      try {
+        const parsed = JSON.parse(out);
+        const list = Array.isArray(parsed) ? parsed
+          : Array.isArray(parsed.sessions) ? parsed.sessions
+          : Array.isArray(parsed.agents) ? parsed.agents
+          : [];
+        agentsCli.sessions = list;
+        agentsCli.available = true;
+        agentsCli.error = null;
+        resolve();
+      } catch (e) {
+        fail(`parse: ${e.message}`);
+      }
+    });
+  });
+}
+
+// プロジェクトパスに紐づく live セッションを抽出する (cwd 系フィールドで突合)。
+function agentSessionsForPath(projectPath) {
+  if (!projectPath || agentsCli.available !== true) return [];
+  let want;
+  try { want = path.resolve(projectPath).toLowerCase(); } catch { return []; }
+  const result = [];
+  for (const s of agentsCli.sessions) {
+    if (!s || typeof s !== 'object') continue;
+    const cwd = s.cwd || s.workingDirectory || s.projectPath || s.directory || s.path;
+    if (typeof cwd !== 'string') continue;
+    try { if (path.resolve(cwd).toLowerCase() !== want) continue; } catch { continue; }
+    result.push({
+      id: s.id || s.sessionId || s.name || null,
+      status: s.status || null,
+      waitingFor: s.waitingFor || null,
+    });
+  }
+  return result;
 }
 
 // ── Config loader ────────────────────────────────────────────────────────────
@@ -273,6 +359,9 @@ async function checkProcess(cfg) {
     const projects = {};
     let runningCount = 0;
 
+    // v10.7: Agent View 観測 (throttle 付き・fail-soft)
+    await pollClaudeAgents();
+
     for (const p of enabled) {
       const projectName = p.name;
       const handleKey = `${cfg.id}:${projectName}`;
@@ -316,6 +405,25 @@ async function checkProcess(cfg) {
           lastOutcome: rot.last_outcome || null,
           blocked: rot.blocked === true,
         };
+      }
+
+      // v10.7: `claude agents --json` の waitingFor (permission prompt 等の停止理由) を
+      // 観測専用フィールドとして公開する。無人セッションが黙って固まる事態を dashboard で
+      // 検知できるようにする (起動ゲート判定には使わない)。
+      const liveSessions = agentSessionsForPath(p.path || '');
+      projects[projectName].agentSessions = liveSessions;
+      const waitingSession = liveSessions.find(s => s.waitingFor);
+      const waitingForText = waitingSession
+        ? (typeof waitingSession.waitingFor === 'string'
+            ? waitingSession.waitingFor
+            : JSON.stringify(waitingSession.waitingFor))
+        : null;
+      projects[projectName].waitingFor = waitingForText;
+      if (waitingForText && stats.lastWaitingFor !== waitingForText) {
+        stats.lastWaitingFor = waitingForText;
+        log(`WAITING ${projectName}: ${waitingForText.slice(0, 160)}`);
+      } else if (!waitingForText) {
+        stats.lastWaitingFor = null;
       }
 
       if (goal.reached || running) continue;
@@ -385,6 +493,12 @@ async function checkProcess(cfg) {
     entry.restartCooldownMinutes = cfg.restartCooldownMinutes || 10;
     entry.maxRestartsPerProject = maxRestartsPerProject;
     entry.runningCount = runningCount;
+    entry.agentsCli = {
+      available: agentsCli.available,
+      error: agentsCli.error,
+      lastPolledAt: agentsCli.lastPolledAt ? new Date(agentsCli.lastPolledAt).toISOString() : null,
+      sessionCount: agentsCli.sessions.length,
+    };
     entry.lastCheckedAt = new Date().toISOString();
     return;
   }

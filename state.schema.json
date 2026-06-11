@@ -390,6 +390,15 @@
         "last_advanced_at": { "type": ["string", "null"], "format": "date-time" },
         "last_outcome": { "type": ["string", "null"], "enum": ["advanced", "retry", "forced-advance", "blocked", "crash", null] },
         "last_finalized_session": { "type": ["string", "null"], "description": "二重 finalize 防止の冪等ガード (session.json の sessionId)" },
+        "max_nudges": { "type": "integer", "minimum": 0, "description": "Continuation Nudge の 1 セッション上限。既定 2 (v10.7 session-end.js)" },
+        "nudge": {
+          "type": ["object", "null"],
+          "description": "Continuation Nudge カウンタ (v10.7 session-end.js が管理)。session_id が変わるとリセット",
+          "properties": {
+            "session_id": { "type": ["string", "null"] },
+            "count": { "type": "integer", "minimum": 0 }
+          }
+        },
         "history": {
           "type": "array",
           "description": "直近 20 件の遷移履歴 [{at, from, to, outcome, via}]",

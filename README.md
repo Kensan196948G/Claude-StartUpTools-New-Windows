@@ -10,7 +10,7 @@ model. Legacy Linux assets are kept under `legacy-linux/` only for reference.
 
 | 項目 | 現行値 |
 |---|---|
-| バージョン | **v4.0.0** |
+| バージョン | **v4.2.0** |
 | Agents | **44体** |
 | Commands | **42コマンド** |
 | Release mode | Windows native / human final decision |

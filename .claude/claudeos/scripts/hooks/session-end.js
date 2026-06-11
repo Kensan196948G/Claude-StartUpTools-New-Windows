@@ -12,6 +12,23 @@ const path = require("path");
 
 const STATE_FILE = path.join(process.cwd(), "state.json");
 
+// v10.7 Continuation Nudge 用:
+// Stop hook は stdout に JSON を返すと hookSpecificOutput.additionalContext を
+// Claude のコンテキストへ注入できる (turn 継続・非ブロック / Claude Code 2.1.163+)。
+// stdout が JSON 以外の行と混在すると parse されないため、通常ログをバッファし、
+// JSON 出力時のみ stderr へ退避して stdout を JSON 専用にする。
+const ORIG_LOG = console.log.bind(console);
+const LOG_BUFFER = [];
+console.log = (...args) => { LOG_BUFFER.push(args.join(" ")); };
+let nudgePayload = null;
+
+// Stop hook の標準入力 (session_id / stop_hook_active 等)。
+// TTY からの手動実行では読まない (EOF 待ちでハングするため)。失敗しても fail-soft。
+let hookInput = {};
+try {
+  if (!process.stdin.isTTY) hookInput = JSON.parse(fs.readFileSync(0, "utf8"));
+} catch { /* fail-soft */ }
+
 function readJson(file) {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -166,6 +183,37 @@ try {
       }
     } catch { /* fail-soft */ }
 
+    // v10.7 Continuation Nudge: phase モードの AutoRun セッションが Completion Criteria
+    // 未充足 (phase_done!=true) のままターンを終えようとした場合、additionalContext で
+    // 継続を催促する。Stop は毎ターン発火し得るため 1 セッション最大 max_nudges 回
+    // (既定 2) に制限する。ポインタ前進の正本は launcher の goal-rotation.js finalize の
+    // ままで、ここでは nudge カウンタ以外の rotation 状態を変更しない。
+    try {
+      const rot = state.goal_rotation;
+      const isPhaseRun = process.env.CLAUDEOS_GOAL_MODE === "phase";
+      if (isPhaseRun && rot && rot.mode === "phase" && rot.phase_done !== true && rot.blocked !== true) {
+        const sessionId = hookInput.session_id || null;
+        const maxNudges = Number.isInteger(rot.max_nudges) ? rot.max_nudges : 2;
+        if (!rot.nudge || rot.nudge.session_id !== sessionId) {
+          rot.nudge = { session_id: sessionId, count: 0 };
+        }
+        if (rot.nudge.count < maxNudges) {
+          rot.nudge.count += 1;
+          nudgePayload = {
+            hookSpecificOutput: {
+              hookEventName: "Stop",
+              additionalContext:
+                `🔁 [GoalRotation] phase=${rot.current} の Completion Criteria が未充足のまま終了しようとしています` +
+                ` (nudge ${rot.nudge.count}/${maxNudges})。継続可能なら作業を続け、充足したら state.json の` +
+                ` goal_rotation.phase_done=true 書き込みと reports/handoff/ への Session Handoff 出力を行ってください。` +
+                `継続不能 (blocked) ならそのまま終了して構いません (launcher がリトライ/強制前進を処理します)。`,
+            },
+          };
+          console.log(`[SessionEnd][GoalRotation] 🔁 continuation nudge ${rot.nudge.count}/${maxNudges} (phase=${rot.current})`);
+        }
+      }
+    } catch { /* fail-soft */ }
+
     writeJsonAtomic(STATE_FILE, state);
     console.log("[SessionEnd] state.json updated (last_stop_at + learning recorded)");
 
@@ -257,4 +305,12 @@ if (dreamingEnabled) {
   }
 }
 
+// v10.7: バッファしたログを出力する。nudge 時は stdout を JSON 専用にするため
+// 通常ログを stderr へ退避し、additionalContext JSON のみを stdout へ書く。
+if (nudgePayload) {
+  for (const line of LOG_BUFFER) process.stderr.write(line + "\n");
+  ORIG_LOG(JSON.stringify(nudgePayload));
+} else {
+  for (const line of LOG_BUFFER) ORIG_LOG(line);
+}
 process.exit(0);
