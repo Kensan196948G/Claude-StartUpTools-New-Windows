@@ -75,7 +75,7 @@ tools: Read, Bash, Grep, Glob
 ## 参照
 
 - `system/stable-rubric.json` — 評価基準の正本
-- `.claude/claudeos/docs/webui-full-verification-checklist.md` — Gate-1 / Gate-2 チェックリスト
+- `.claude/claudeos/docs/webui-full-verification-checklist.md`（テンプレ正本: `Claude/templates/claudeos/docs/webui-full-verification-checklist.md`）— Gate-1 / Gate-2 チェックリスト
 - `system/role-contracts.md` — 返却フォーマット詳細
 - `CLAUDE.md §9` — STABLE 判定の運用規約
 

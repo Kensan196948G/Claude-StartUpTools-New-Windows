@@ -1,4 +1,4 @@
-﻿---
+---
 name: qa
 description: テスト設計・品質保証担当。回帰テスト・バグ検出・品質評価を行う。
 tools: Read, Write, Edit, Bash, Grep, Glob
@@ -16,6 +16,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 
 # QA Agent
+
+品質分析とバグ検出（Quality analysis and bug detection）を担う。品質保証・バグ検出が主務。
 
 ## 役割
 

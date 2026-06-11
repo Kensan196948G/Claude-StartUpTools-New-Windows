@@ -151,6 +151,10 @@ jobs:
         shell: pwsh
         run: node scripts/check-doc-versions.js
 
+      - name: Check Agent Template/Mirror Consistency
+        shell: pwsh
+        run: node scripts/check-template-mirror.js
+
       - name: Check README Stats Up-to-date
         shell: pwsh
         run: |

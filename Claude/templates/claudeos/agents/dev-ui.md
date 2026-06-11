@@ -1,4 +1,4 @@
-﻿---
+---
 name: dev-ui
 description: フロントエンド/UI実装担当。UI設計・実装・UX改善・API連携を行う。
 tools: Read, Write, Edit, Bash, Grep, Glob
@@ -16,6 +16,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 
 # DevUI Agent
+
+Frontend/UI implementation. フロントエンド/UI実装担当。
 
 ## 役割
 
@@ -36,6 +38,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 
 ## 5h ルール
 
+- UI 未完成でも状態保存する
 - UI 未完成でもスクリーン/仕様メモを残す
 
 ## 連携先

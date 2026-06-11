@@ -1,4 +1,4 @@
-﻿---
+---
 name: security
 description: 廃止済み。security-reviewer.md に統合済み。
 tools: Read
@@ -15,7 +15,36 @@ tools: Read
 - 🖥️ emoji 非対応端末でのみ `CLAUDEOS_PLAIN_OUTPUT=1` でプレーン出力へ fallback する
 
 
+# Security Agent（廃止済み）
+
 > このファイルは廃止されました。`security-reviewer.md` を参照してください。
+
+## 旧定義（参考 — security-reviewer.md に統合済み）
+
+セキュリティスキャンと脆弱性検出（Security scanning and vulnerability detection）。セキュリティ管理を担っていた。
+
+### 役割
+
+- 脆弱性検出
+- secrets 管理
+- 権限チェック
+
+### アクション
+
+- セキュリティスキャン
+- 依存関係チェック
+
+### 制約
+
+- 危険変更を許可しない
+
+### 5h ルール
+
+- 未解決リスクは必ず記録
+
+### 連携先
+
+- DevOps / QA と連携
 
 ## 停止理由出力（Agent View 可視化）
 

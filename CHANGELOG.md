@@ -8,6 +8,29 @@
 > `AGENTS.md`, `config/config.json.template`, and
 > `docs/windows-migration-audit.md`.
 
+## [v4.2.1] - 2026-06-11 — agents template/mirror reconciliation (Issue #17)
+
+### Fixed
+
+- Reconciled the drift (present since the initial commit) between the agent
+  template source of truth (`Claude/templates/claudeos/agents/`) and the
+  in-repo mirror (`.claude/claudeos/agents/`):
+  - 10 真ドリフトファイル (orchestrator, architect, dev-api, dev-ui, ops,
+    tester, qa, security-reviewer, security, outcome-grader) を3方向統合 —
+    ミラー側の v8 設計記述 (Managed Agents 委譲パターン, Orchestration Event
+    Log, Light/Full モード等) をテンプレ正本へバックポートし、情報を一切
+    落とさず両側をバイト同一化。
+  - 23 icon-only ファイルをテンプレ→ミラー再同期。
+  - ミラーのみに存在し一度も配布されていなかった 11 本 (cpp/go/java/kotlin/
+    pytorch/rust 系 reviewer・build-resolver) をアイコン規約ブロック付きで
+    テンプレへ昇格 (テンプレも 44 本に)。
+
+### Added
+
+- `scripts/check-template-mirror.js` + CI step
+  "Check Agent Template/Mirror Consistency" — テンプレ↔ミラーの集合・内容
+  一致 (BOM/改行正規化) を検証し再発を防止。
+
 ## [v4.2.0] - 2026-06-11 — Claude Code 2.1.x feature adoption (ClaudeOS v10.7)
 
 ### Summary
