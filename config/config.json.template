@@ -1,7 +1,7 @@
 {
   "_comment": "Claude StartUpTools Windows 設定テンプレート - コピーしてconfig.jsonとして使用",
   "version": "4.0.0-windows",
-  "projectsDir": "D:\\",
+  "projectsDir": "D:\\Mirai-Projects",
   "localExcludes": [
     "$RECYCLE.BIN",
     "System Volume Information",
