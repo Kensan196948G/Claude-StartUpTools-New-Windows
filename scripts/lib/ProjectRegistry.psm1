@@ -229,7 +229,7 @@ function Get-ProjectGithubUrl {
 
 function Get-WindowsProjectCandidate {
     param(
-        [string]$ProjectsDir = 'D:\',
+        [string]$ProjectsDir = 'D:\Mirai-Projects',
         [string[]]$ExcludeNames = @(),
         [switch]$GitOnly
     )
@@ -299,7 +299,7 @@ function Unregister-WindowsProject {
 
 function Sync-WindowsProjectRegistry {
     param(
-        [string]$ProjectsDir = 'D:\',
+        [string]$ProjectsDir = 'D:\Mirai-Projects',
         [string[]]$ExcludeNames = @(),
         [switch]$GitOnly,
         [string]$RegistryPath = '',
