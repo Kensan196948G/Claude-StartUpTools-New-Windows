@@ -173,4 +173,6 @@ Claude/templates/claude/instructions/CLAUDE.md
 docs/common/CLAUDE.md
 .github/CLAUDE.md
 docs/CLAUDE.md
+.claude/CLAUDE.md
+config/CLAUDE.md
 Claude/templates/claude/Claude/

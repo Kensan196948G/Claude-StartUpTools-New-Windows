@@ -69,7 +69,12 @@ Monitor -> Development -> Verify -> Improvement
 - No unverified merge.
 - Security has priority over feature work.
 - Release phase does not accept new feature work unless it fixes release blockers.
-- Human confirms push, merge, release, destructive file operations, and security exceptions.
+- Commit, push, PR creation, and merge are fully delegated to the CTO and run without
+  human confirmation once verification (tests / CI) passes and the auto-merge gate in
+  `.claude/claudeos/docs/auto-merge-protocol.md` (`trust.level >= 2`, prohibited
+  categories excluded) is satisfied (user-approved 2026-07-14).
+- Human confirms release declarations, force-push / history rewrites, destructive file
+  operations outside the repository, and security exceptions.
 
 ## Supervisor Policy
 
