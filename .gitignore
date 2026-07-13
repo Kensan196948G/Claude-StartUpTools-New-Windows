@@ -175,4 +175,6 @@ docs/common/CLAUDE.md
 docs/CLAUDE.md
 .claude/CLAUDE.md
 config/CLAUDE.md
+.claude/claudeos/data/CLAUDE.md
+.claude/claudeos/docs/CLAUDE.md
 Claude/templates/claude/Claude/
