@@ -1,7 +1,7 @@
 {
   "_comment": "Claude StartUpTools Windows 設定テンプレート - コピーしてconfig.jsonとして使用",
   "version": "4.0.0-windows",
-  "projectsDir": "D:\\Mirai-Projects",
+  "projectsDir": "D:\\Mirai-DX-Projects",
   "localExcludes": [
     "$RECYCLE.BIN",
     "System Volume Information",
@@ -108,7 +108,7 @@
   },
   "notifications": {
     "_comment": "Windows Terminal 通知音設定。soundEnabled:false で無効化できます。",
-    "soundEnabled": true,
+    "soundEnabled": false,
     "playOnStart": true,
     "playOnExit": true,
     "sounds": {
