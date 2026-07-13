@@ -34,7 +34,7 @@ function Get-StartupConfigPath {
         return $env:AI_STARTUP_CONFIG_PATH
     }
 
-    return (Join-Path $StartupRoot "config\\config.json")
+    return (Join-Path $StartupRoot 'config\config.json')
 }
 
 <#
