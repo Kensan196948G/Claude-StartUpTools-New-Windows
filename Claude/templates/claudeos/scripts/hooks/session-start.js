@@ -187,7 +187,9 @@ if (process.env.CLAUDEOS_DASHBOARD_PORT) {
   try {
     const home = process.env.USERPROFILE || process.env.HOME || "";
     const rt = JSON.parse(fs.readFileSync(path.join(home, ".claudeos", "dashboard-runtime.json"), "utf8"));
-    if (rt && rt.missionControlUrl) dashUrl = rt.missionControlUrl;
+    // Prefer a guaranteed-local URL: this hook always runs on the dashboard host.
+    if (rt && rt.localUrl) dashUrl = `${rt.localUrl}/mission-control`;
+    else if (rt && rt.missionControlUrl) dashUrl = rt.missionControlUrl;
   } catch { /* keep default */ }
 }
 lines.push(`  dashboard: ${dashUrl} (Agent Teams Activity パネル参照)`);
