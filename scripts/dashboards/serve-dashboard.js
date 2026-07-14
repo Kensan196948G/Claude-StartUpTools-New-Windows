@@ -199,10 +199,29 @@ function isLoopbackRequest(req) {
 }
 
 /** Guard for state-changing endpoints (job execution, AutoRun CRUD).
- *  With auth disabled the dashboard binds 0.0.0.0 for LAN viewing, but only
- *  loopback clients may mutate; remote management requires DASHBOARD_PASSWORD
- *  (or config.json dashboardAuth). With auth enabled, Basic Auth governs all. */
+ *  Two independent checks:
+ *   1. CSRF — reject cross-origin browser requests. A drive-by page on
+ *      localhost would otherwise pass the loopback check (the browser runs on
+ *      127.0.0.1) and trigger command-executing jobs via a simple POST. The
+ *      browser always attaches an `Origin` header on cross-origin POSTs, and it
+ *      cannot be forged from script, so an Origin whose host ≠ the request Host
+ *      is a cross-site forgery. Non-browser clients (curl, supervisor) send no
+ *      Origin and are unaffected.
+ *   2. Network — with auth disabled the dashboard binds 0.0.0.0 for LAN
+ *      viewing, but only loopback clients may mutate; remote management requires
+ *      DASHBOARD_PASSWORD (or config.json dashboardAuth). Auth ⇒ Basic Auth
+ *      already governed every route upstream. */
 function checkMutationAllowed(req, res) {
+  const origin = req.headers['origin'];
+  if (origin) {
+    let sameOrigin = false;
+    try { sameOrigin = new URL(origin).host === req.headers['host']; } catch { sameOrigin = false; }
+    if (!sameOrigin) {
+      res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Cross-origin mutation blocked (CSRF protection).' }));
+      return false;
+    }
+  }
   if (AUTH_PASS || isLoopbackRequest(req)) return true;
   res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify({

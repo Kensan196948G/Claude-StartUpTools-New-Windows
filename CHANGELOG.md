@@ -32,6 +32,10 @@
   エンドポイント (`POST /api/jobs`, `POST/DELETE /api/autorun|/api/cron`)
   は loopback 以外へ 403 を返す **LAN read-only ガード**を追加。起動バナー
   に認証モードを明示。
+- 上記変更系エンドポイントに **CSRF ガード**を追加: クロスオリジンの
+  `Origin`（Host と不一致）を持つリクエストを 403 で拒否。ローカルブラウザ
+  発の drive-by simple-request がジョブ実行（コマンド起動）をトリガーする
+  経路を塞ぐ（loopback ガードだけでは同一マシンのブラウザを止められない）。
 
 ### Changed
 

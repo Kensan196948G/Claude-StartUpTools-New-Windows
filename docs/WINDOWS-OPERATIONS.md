@@ -132,6 +132,11 @@ after a fallback.
 | `DASHBOARD_PASSWORD` / `dashboardAuth` set | Basic Auth | Basic Auth (SSE uses short-lived tokens) |
 | Auth disabled (default) | Allowed from LAN | Loopback only — LAN clients receive 403 |
 
+Mutating endpoints additionally enforce a **CSRF check**: a request carrying a
+cross-origin `Origin` header (host ≠ the request Host) is rejected with 403, so
+a drive-by page opened in a browser on the dashboard host cannot trigger
+command-executing jobs even though it originates from loopback.
+
 The loopback restriction keys off the TCP peer address (`req.socket.remoteAddress`)
 and does not trust forwarded headers, so it cannot be bypassed by header
 spoofing. **However, if you place a reverse proxy or port-forwarder that
