@@ -34,18 +34,29 @@ if (Test-Path $ConfigPath) {
 
 Write-DashboardLog "PROJECTS_DIR: $env:AI_STARTUP_PROJECTS_DIR"
 
-# 二重起動防止: ポートが既に使われていれば起動しない
-$portInUse = $false
+# 二重起動防止 + auto-fallback 尊重 (v4.3.0):
+# 旧実装は「$Port が使用中なら即 exit 0」で、別アプリが 3737 を占有していると
+# node に到達せず serve-dashboard.js 側の自動ポートフォールバックが発火しなかった。
+# 代わりに runtime file に記録された実ポート (無ければ既定) で /api/health を叩き、
+# 応答があれば「既存 dashboard 稼働中」とみなしてスキップ。応答が無ければ node を
+# 起動し、3737 占有時のポート回避は node 側の auto-fallback に委ねる。
+$probePort = $Port
+$rtFile = Join-Path $env:USERPROFILE '.claudeos\dashboard-runtime.json'
 try {
-    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
-    $listener.Start()
-    $listener.Stop()
-} catch {
-    $portInUse = $true
-}
+    if (Test-Path $rtFile) {
+        $rt = Get-Content $rtFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($rt.port) { $probePort = [int]$rt.port }
+    }
+} catch { $null = $_ }
 
-if ($portInUse) {
-    Write-DashboardLog "Port $Port already in use — dashboard already running. Skip."
+$alreadyRunning = $false
+try {
+    $resp = Invoke-WebRequest -Uri "http://localhost:$probePort/api/health" -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop
+    if ($resp.StatusCode -eq 200) { $alreadyRunning = $true }
+} catch { $alreadyRunning = $false }
+
+if ($alreadyRunning) {
+    Write-DashboardLog "Dashboard already healthy on port $probePort — skip."
     exit 0
 }
 
