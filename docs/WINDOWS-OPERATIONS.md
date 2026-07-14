@@ -101,8 +101,12 @@ npm run start:dashboard
 ```
 
 ```text
-http://127.0.0.1:3737/mission-control
+http://127.0.0.1:3737/mission-control   # default port; see resolution below
 ```
+
+> After an automatic port fallback the effective URL is in
+> `%USERPROFILE%\.claudeos\dashboard-runtime.json` (`missionControlUrl` /
+> `localUrl` / `port`). Prefer that file over assuming 3737.
 
 ### Port and address resolution (v4.3.0)
 
@@ -127,6 +131,14 @@ after a fallback.
 |---|---|---|
 | `DASHBOARD_PASSWORD` / `dashboardAuth` set | Basic Auth | Basic Auth (SSE uses short-lived tokens) |
 | Auth disabled (default) | Allowed from LAN | Loopback only — LAN clients receive 403 |
+
+The loopback restriction keys off the TCP peer address (`req.socket.remoteAddress`)
+and does not trust forwarded headers, so it cannot be bypassed by header
+spoofing. **However, if you place a reverse proxy or port-forwarder that
+terminates on localhost in front of the dashboard, remote clients will appear as
+loopback and bypass the read-only restriction.** In any proxied deployment, set
+`DASHBOARD_PASSWORD` (or `config.json` `dashboardAuth`) so Basic Auth governs all
+requests.
 
 Windows release checks:
 

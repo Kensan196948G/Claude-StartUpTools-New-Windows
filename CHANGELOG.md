@@ -22,11 +22,13 @@
   (`config/processes.json` の dashboard エントリに配線).
 - `.claude/settings.json` + `Claude/templates/claude/settings.json`:
   `permissions.allow`（読み取り系 17 ルール）と `permissions.deny` 床
-  （`rm -rf` / force-push / `git reset --hard origin` / ドライブ直下の再帰削除）。
+  （`rm -rf` / force-push / `git reset --hard origin` / `git clean -fdx` /
+  PowerShell の `Remove-Item -Recurse -Force`）。
 
 ### Security
 
-- 認証未設定 (`DASHBOARD_PASSWORD` なし) の 0.0.0.0 バインド時、変更系
+- 認証未設定（`DASHBOARD_PASSWORD` 環境変数も `config.json` の
+  `dashboardAuth.password` も未設定）の 0.0.0.0 バインド時、変更系
   エンドポイント (`POST /api/jobs`, `POST/DELETE /api/autorun|/api/cron`)
   は loopback 以外へ 403 を返す **LAN read-only ガード**を追加。起動バナー
   に認証モードを明示。

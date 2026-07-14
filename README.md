@@ -116,7 +116,7 @@ flowchart LR
 | 🚫 No SSH runtime | remote SSH execution is removed from the Windows runtime path |
 | 🧪 No unverified merge | local tests and CI evidence must be visible before merge |
 | ⚙️ Supervisor limits | registered project autonomy uses max concurrency and cooldowns |
-| 🛡️ Permissions floor | `.claude/settings.json` denies `rm -rf`, force-push, and drive-root recursive deletes even in autonomous runs |
+| 🛡️ Permissions floor | `.claude/settings.json` denies `rm -rf`, force-push, `git reset --hard origin`, and PowerShell recursive force-deletes even in autonomous runs |
 
 ## ⌨️ Core Commands
 
@@ -141,6 +141,11 @@ npm run lint:pester
 ```
 
 ## 📦 Release Candidate Review
+
+> ℹ️ The documents below track the **`v1.0.0` production-release milestone**
+> (first human-published GitHub Release). They are a separate track from the
+> incremental `v4.x` changelog versions above — `v4.3.0` is the current
+> development version, `v1.0.0` is the future first tagged release.
 
 `v1.0.0` tag creation and GitHub Release publication are human-only final
 actions. Development may prepare RC evidence, but it must not publish the final
