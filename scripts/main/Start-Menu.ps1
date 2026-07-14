@@ -477,11 +477,31 @@ while ($true) {
         "PD" { Invoke-MenuScript -File "scripts\main\Start-Dashboard.ps1" }
         "MC" {
             $env:AI_STARTUP_PROJECTS_DIR = $Config.projectsDir
-            Start-Process "http://localhost:3737/mission-control"
-            Write-Host "[MC] Mission Control: http://localhost:3737/mission-control" -ForegroundColor Cyan
-            if (-not (Get-NetTCPConnection -LocalPort 3737 -ErrorAction SilentlyContinue)) {
+            # auto port fallback 後の実効ポートを runtime file から解決する (v4.3.0)。
+            # ただし stale file 対策として「そのポートが実際に LISTEN しているか」を
+            # 先に検証し、未起動なら runtime file を信用せず起動→再読込してから開く。
+            $rtFile = Join-Path $env:USERPROFILE '.claudeos\dashboard-runtime.json'
+            $mcPort = 3737
+            try {
+                if (Test-Path $rtFile) {
+                    $rt = Get-Content $rtFile -Raw | ConvertFrom-Json
+                    if ($rt.port) { $mcPort = [int]$rt.port }
+                }
+            } catch { $null = $_ }
+            $listening = Get-NetTCPConnection -LocalPort $mcPort -State Listen -ErrorAction SilentlyContinue
+            if (-not $listening) {
                 Invoke-MenuScript -File "scripts\main\Start-Dashboard.ps1" -ScriptArgs @('-NoBrowser')
+                Start-Sleep -Seconds 2
+                try {
+                    if (Test-Path $rtFile) {
+                        $rt = Get-Content $rtFile -Raw | ConvertFrom-Json
+                        if ($rt.port) { $mcPort = [int]$rt.port }
+                    }
+                } catch { $null = $_ }
             }
+            $mcUrl = "http://localhost:$mcPort/mission-control"
+            Start-Process $mcUrl
+            Write-Host "[MC] Mission Control: $mcUrl" -ForegroundColor Cyan
         }
         "DR" { Invoke-MenuScript -File "scripts\main\Register-DashboardTask.ps1" -ScriptArgs @('-RunNow') }
         "DU" { Invoke-MenuScript -File "scripts\main\Register-DashboardTask.ps1" -ScriptArgs @('-Unregister') }

@@ -8,6 +8,44 @@
 > `AGENTS.md`, `config/config.json.template`, and
 > `docs/windows-migration-audit.md`.
 
+## [v4.3.0] - 2026-07-14 — WebUI auto IP/port + LAN mutation guard + CTO git delegation
+
+### Added
+
+- `serve-dashboard.js`: automatic port fallback — preferred port
+  (`--port` / bare numeric arg / `DASHBOARD_PORT` env / default 3737) scans
+  upward (max +20) when busy, announces the LAN IP, and atomically records
+  the effective endpoint in `~/.claudeos/dashboard-runtime.json`
+  (port / lanIp / urls / pid / auth state) for tool discovery.
+- `supervisor-daemon.js`: `runtimeHealthFile` support — the dashboard health
+  check follows the actually-bound port after a fallback
+  (`config/processes.json` の dashboard エントリに配線).
+- `.claude/settings.json` + `Claude/templates/claude/settings.json`:
+  `permissions.allow`（読み取り系 17 ルール）と `permissions.deny` 床
+  （`rm -rf` / force-push / `git reset --hard origin` / `git clean -fdx` /
+  PowerShell の `Remove-Item -Recurse -Force`）。
+
+### Security
+
+- 認証未設定（`DASHBOARD_PASSWORD` 環境変数も `config.json` の
+  `dashboardAuth.password` も未設定）の 0.0.0.0 バインド時、変更系
+  エンドポイント (`POST /api/jobs`, `POST/DELETE /api/autorun|/api/cron`)
+  は loopback 以外へ 403 を返す **LAN read-only ガード**を追加。起動バナー
+  に認証モードを明示。
+- 上記変更系エンドポイントに **CSRF ガード**を追加: クロスオリジンの
+  `Origin`（Host と不一致）を持つリクエストを 403 で拒否。ローカルブラウザ
+  発の drive-by simple-request がジョブ実行（コマンド起動）をトリガーする
+  経路を塞ぐ（loopback ガードだけでは同一マシンのブラウザを止められない）。
+
+### Changed
+
+- README.md をアイコン・表・mermaid 図中心に全面再構成（アーキテクチャ図 /
+  自律ループ図 / WebUI 自動ポート仕様 / PR #20 の CTO git 委任を反映した
+  ガバナンス表）。
+- プロジェクトスキャン既定を `D:\Mirai-DX-Projects` へ変更
+  （config テンプレート + `ProjectRegistry.psm1` 既定値、PR #20）。
+- `.gitignore`: claude-mem 自動生成 CLAUDE.md の除外リストを 6 パス追補。
+
 ## [v4.2.1] - 2026-06-11 — agents template/mirror reconciliation (Issue #17)
 
 ### Fixed

@@ -107,7 +107,8 @@
 93. [DONE] [Priority:P2][Owner:Developer][Source:Manual] v3.3.4 Cron CRUD API + WebUI 登録フォーム — GET/POST/DELETE /api/cron / CronRegisterModal / 削除確認ダイアログ / E2E検証済み
 94. [DONE] [Priority:P2][Owner:Developer][Source:Manual] v3.3.5 サーバー自動再起動+SSE Token認証+Gate-1 13項目+SOT 93ファイル同期+パフォーマンス改善
 95. [DONE] [Priority:P2][Owner:Developer][Source:Manual] v3.3.6 Mission Control 6項目 UI 改善 — Projects Cron専用/Dashboard稼働バナー/健全性全プロジェクト/CI選択/Cron日時フォーマット
-96. [NEXT] [Priority:P2][Owner:Developer][Source:Manual] v3.3.7 PR作成 + CodeRabbit review + WebUI 250項目 Gate-2 実施
+96. [DONE] [Priority:P2][Owner:Developer][Source:Manual] v3.3.7 PR作成 + CodeRabbit review + WebUI 250項目 Gate-2 実施
+97. [DONE] [Priority:P1][Owner:CTO][Source:Manual] v4.3.0 WebUI 自動IP/ポートフォールバック (serve-dashboard.js: 3737→最大+20 走査 / dashboard-runtime.json 書出 / supervisor pid検証 healthUrl追従) + LAN read-only ガード (認証無効時 変更系APIは loopback限定・403) + permissions allow/deny 床 (.claude/settings.json + template) + README/CHANGELOG/WINDOWS-OPERATIONS を v4.3.0 にアイコン/表/mermaid で刷新。CodeRabbit 3件 + Codex 6件 + security-review (findings 0) 対応済。PR #22 (CI green)
 
 ## Auto Extracted From Agent Teams Matrix
 

@@ -117,8 +117,23 @@ if ($RunNow) {
     Write-Host "  [起動中] Dashboard を今すぐ起動します..." -ForegroundColor Cyan
     Start-ScheduledTask -TaskName $TaskName
     Start-Sleep -Seconds 3
-    Write-Host "  [OK] 起動しました: http://localhost:3737" -ForegroundColor Green
-    Start-Process 'http://localhost:3737'
+    # auto port fallback 後の実効 URL を runtime file から解決する (v4.3.0)。
+    # stale file 対策: startedAt が直近 (60 秒以内) の「今回の起動で書かれた」
+    # ファイルのみ信用し、古ければ既定 3737 にフォールバックする。
+    $dashUrl = 'http://localhost:3737'
+    $rtFile = Join-Path $env:USERPROFILE '.claudeos\dashboard-runtime.json'
+    try {
+        if (Test-Path $rtFile) {
+            $rt = Get-Content $rtFile -Raw | ConvertFrom-Json
+            $fresh = $false
+            if ($rt.startedAt) {
+                try { $fresh = ((Get-Date) - [datetime]$rt.startedAt).TotalSeconds -lt 60 } catch { $fresh = $false }
+            }
+            if ($fresh -and $rt.localUrl) { $dashUrl = $rt.localUrl }
+        }
+    } catch { $null = $_ }
+    Write-Host "  [OK] 起動しました: $dashUrl" -ForegroundColor Green
+    Start-Process $dashUrl
 }
 
 Write-Host ''

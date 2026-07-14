@@ -144,7 +144,7 @@ try {
             } else { '' }
 
             $session = New-SessionInfo -Project $Project -DurationMinutes $sessionDurationMin `
-                -Trigger 'manual' -Pid $PID -ConfigSessionsDir $sessionsDir `
+                -Trigger 'manual' -ProcessId $PID -ConfigSessionsDir $sessionsDir `
                 -ProjectRegistrationDate $projRegDate `
                 -ProjectReleaseDeadline  $projDeadline `
                 -ProjectDurationMonths   $projDurMonths

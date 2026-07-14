@@ -101,8 +101,49 @@ npm run start:dashboard
 ```
 
 ```text
-http://127.0.0.1:3737/mission-control
+http://127.0.0.1:3737/mission-control   # default port; see resolution below
 ```
+
+> After an automatic port fallback the effective URL is in
+> `%USERPROFILE%\.claudeos\dashboard-runtime.json` (`missionControlUrl` /
+> `localUrl` / `port`). Prefer that file over assuming 3737.
+
+### Port and address resolution (v4.3.0)
+
+The dashboard binds `0.0.0.0` and auto-detects the LAN IPv4 for display. The
+port is resolved as `--port <n>` / bare numeric arg → `DASHBOARD_PORT` env →
+default `3737`; when the preferred port is busy, startup scans upward
+(max +20) instead of exiting. The effective endpoint is written atomically to:
+
+```text
+%USERPROFILE%\.claudeos\dashboard-runtime.json
+  { port, preferredPort, lanIp, localUrl, lanUrl,
+    missionControlUrl, healthUrl, pid, authEnabled, startedAt }
+```
+
+`supervisor-daemon.js` reads this file (`runtimeHealthFile` in
+`config/processes.json`) so health checks follow the actually-bound port
+after a fallback.
+
+### Access control
+
+| State | GET (viewing) | POST/DELETE (jobs, AutoRun CRUD) |
+|---|---|---|
+| `DASHBOARD_PASSWORD` / `dashboardAuth` set | Basic Auth | Basic Auth (SSE uses short-lived tokens) |
+| Auth disabled (default) | Allowed from LAN | Loopback only — LAN clients receive 403 |
+
+Mutating endpoints additionally enforce a **CSRF check**: a request carrying a
+cross-origin `Origin` header (host ≠ the request Host) is rejected with 403, so
+a drive-by page opened in a browser on the dashboard host cannot trigger
+command-executing jobs even though it originates from loopback.
+
+The loopback restriction keys off the TCP peer address (`req.socket.remoteAddress`)
+and does not trust forwarded headers, so it cannot be bypassed by header
+spoofing. **However, if you place a reverse proxy or port-forwarder that
+terminates on localhost in front of the dashboard, remote clients will appear as
+loopback and bypass the read-only restriction.** In any proxied deployment, set
+`DASHBOARD_PASSWORD` (or `config.json` `dashboardAuth`) so Basic Auth governs all
+requests.
 
 Windows release checks:
 

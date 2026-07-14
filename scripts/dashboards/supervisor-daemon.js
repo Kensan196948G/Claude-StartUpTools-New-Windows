@@ -60,6 +60,22 @@ function readJsonFile(file, fallback) {
   }
 }
 
+// Prefer the live URL recorded by the managed process itself (e.g. the
+// dashboard writes ~/.claudeos/dashboard-runtime.json after an automatic
+// port fallback). Only trusted when the file's pid matches the process we
+// actually supervise, so a stale file or a second dashboard instance cannot
+// redirect the probe to the wrong port. Falls back to the static healthUrl.
+function resolveHealthUrl(cfg, expectedPid) {
+  if (cfg.runtimeHealthFile) {
+    const rt = readJsonFile(expandPath(cfg.runtimeHealthFile), null);
+    if (rt && typeof rt.healthUrl === 'string' && rt.healthUrl.startsWith('http')
+        && expectedPid != null && rt.pid === expectedPid) {
+      return rt.healthUrl;
+    }
+  }
+  return cfg.healthUrl;
+}
+
 function latestSessionForProject(sessionDir, project) {
   try {
     if (!fs.existsSync(sessionDir)) return null;
@@ -539,7 +555,7 @@ async function checkProcess(cfg) {
 
   // Process is alive; perform HTTP health check
   if (cfg.healthUrl) {
-    const healthy = await checkHttp(cfg.healthUrl);
+    const healthy = await checkHttp(resolveHealthUrl(cfg, child?.pid));
     if (healthy) {
       entry.status              = 'running';
       entry.consecutiveFailures = 0;

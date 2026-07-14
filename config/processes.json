@@ -10,6 +10,7 @@
       "args": ["scripts/dashboards/serve-dashboard.js"],
       "cwd": "${PROJ_ROOT}",
       "healthUrl": "http://localhost:3737/api/health",
+      "runtimeHealthFile": "${HOME}/.claudeos/dashboard-runtime.json",
       "healthIntervalMs": 10000,
       "backoffBaseSec": 5,
       "maxRestarts": 10,

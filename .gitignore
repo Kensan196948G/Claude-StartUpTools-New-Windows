@@ -162,6 +162,8 @@ Claude/templates/claude/START_PROMPT-backup*.md
 
 # claude-mem MCP が自動生成するコンテキストファイル（コミット不要・各ディレクトリに散在）
 # NOTE: CLAUDE.md at repo root and Claude/templates/ are intentional — only sub-directory auto-generated ones
+# NOTE: セッションが新しいディレクトリを読むたびに増殖する。恒久対処（claude-mem 側の書き込み抑止）を
+#       検討するまでは、出現の都度このリストへ追記する。トラック済みファイルへの追記は revert する。
 .github/issues/CLAUDE.md
 .github/workflows/CLAUDE.md
 .claude/claudeos/system/CLAUDE.md
@@ -177,4 +179,10 @@ docs/CLAUDE.md
 config/CLAUDE.md
 .claude/claudeos/data/CLAUDE.md
 .claude/claudeos/docs/CLAUDE.md
+.claude/claudeos/CLAUDE.md
+.claude/claudeos/review-configs/CLAUDE.md
+.claude/skills/CLAUDE.md
+legacy-linux/tests/integration/CLAUDE.md
+scripts/dashboards/CLAUDE.md
+tests/unit/CLAUDE.md
 Claude/templates/claude/Claude/
