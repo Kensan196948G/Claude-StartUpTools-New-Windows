@@ -26,8 +26,8 @@
       "Bash(git push -f:*)",
       "Bash(git reset --hard origin:*)",
       "Bash(git clean -fdx:*)",
-      "PowerShell(Remove-Item -Recurse -Force C\\::*)",
-      "PowerShell(Remove-Item -Recurse -Force D\\::*)"
+      "PowerShell(Remove-Item -Recurse -Force:*)",
+      "PowerShell(Remove-Item -Force -Recurse:*)"
     ]
   },
   "env": {
