@@ -5,7 +5,9 @@ description: Mission Control WebUI の健全性を確認し、問題があれば
 
 # WebUI 健全性チェックスキル
 
-Dashboard WebUI (`http://localhost:3737`) の稼働状態と設定を確認します。
+Dashboard WebUI (`http://localhost:3737` 既定) の稼働状態と設定を確認します。
+auto port fallback 使用時の実効 URL は `%USERPROFILE%\.claudeos\dashboard-runtime.json` の
+`localUrl` / `port` を先に確認すること (v4.3.0)。
 
 ## 実行手順
 

@@ -477,9 +477,20 @@ while ($true) {
         "PD" { Invoke-MenuScript -File "scripts\main\Start-Dashboard.ps1" }
         "MC" {
             $env:AI_STARTUP_PROJECTS_DIR = $Config.projectsDir
-            Start-Process "http://localhost:3737/mission-control"
-            Write-Host "[MC] Mission Control: http://localhost:3737/mission-control" -ForegroundColor Cyan
-            if (-not (Get-NetTCPConnection -LocalPort 3737 -ErrorAction SilentlyContinue)) {
+            # auto port fallback 後の実効 URL/ポートを runtime file から解決する (v4.3.0)
+            $mcUrl = 'http://localhost:3737/mission-control'
+            $mcPort = 3737
+            $rtFile = Join-Path $env:USERPROFILE '.claudeos\dashboard-runtime.json'
+            try {
+                if (Test-Path $rtFile) {
+                    $rt = Get-Content $rtFile -Raw | ConvertFrom-Json
+                    if ($rt.port)     { $mcPort = [int]$rt.port }
+                    if ($rt.localUrl) { $mcUrl  = "$($rt.localUrl)/mission-control" }
+                }
+            } catch { $null = $_ }
+            Start-Process $mcUrl
+            Write-Host "[MC] Mission Control: $mcUrl" -ForegroundColor Cyan
+            if (-not (Get-NetTCPConnection -LocalPort $mcPort -ErrorAction SilentlyContinue)) {
                 Invoke-MenuScript -File "scripts\main\Start-Dashboard.ps1" -ScriptArgs @('-NoBrowser')
             }
         }

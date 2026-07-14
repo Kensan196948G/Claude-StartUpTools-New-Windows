@@ -178,9 +178,19 @@ if (atuCur.team_create_count || atuCur.send_message_count) {
   lines.push(`  agent_teams_current: TeamCreate=${atuCur.team_create_count || 0} SendMessage=${atuCur.send_message_count || 0} patterns=[${(atuCur.patterns_used || []).join(",")}]`);
 }
 
-// Dashboard URL 案内（Agent View 代替）
-const dashPort = process.env.CLAUDEOS_DASHBOARD_PORT || "3737";
-lines.push(`  dashboard: http://localhost:${dashPort}/mission-control (Agent Teams Activity パネル参照)`);
+// Dashboard URL 案内（Agent View 代替）。auto port fallback 後も正しい URL を出すため
+// runtime file (dashboard-runtime.json) を優先し、env 指定は運用者上書きとして最優先。
+let dashUrl = "http://localhost:3737/mission-control";
+if (process.env.CLAUDEOS_DASHBOARD_PORT) {
+  dashUrl = `http://localhost:${process.env.CLAUDEOS_DASHBOARD_PORT}/mission-control`;
+} else {
+  try {
+    const home = process.env.USERPROFILE || process.env.HOME || "";
+    const rt = JSON.parse(fs.readFileSync(path.join(home, ".claudeos", "dashboard-runtime.json"), "utf8"));
+    if (rt && rt.missionControlUrl) dashUrl = rt.missionControlUrl;
+  } catch { /* keep default */ }
+}
+lines.push(`  dashboard: ${dashUrl} (Agent Teams Activity パネル参照)`);
 
 // ChangeLog v2.1.154: dynamic workflows 起動可否ヒント
 //   workflow は session 終了で in-progress 分が破棄される & token をプラン上限に計上するため、
