@@ -19,7 +19,17 @@ const { exec, execSync, spawn } = require('child_process');
 const { promisify } = require('util');
 const execAsync     = promisify(exec);
 
-const PORT         = parseInt(process.argv.find(a => a.match(/^\d+$/)) || '3737', 10);
+// Preferred port: --port N / bare numeric arg / DASHBOARD_PORT env / 3737.
+// When busy, startup scans upward (max +PORT_SCAN_MAX) and records the actual
+// bound port in ~/.claudeos/dashboard-runtime.json for supervisor/tool discovery.
+const portFlagIdx    = process.argv.indexOf('--port');
+const PREFERRED_PORT = parseInt(
+  (portFlagIdx !== -1 ? process.argv[portFlagIdx + 1] : null) ||
+  process.argv.find(a => a.match(/^\d+$/)) ||
+  process.env.DASHBOARD_PORT || '3737', 10);
+const PORT_SCAN_MAX  = 20;
+const RUNTIME_INFO_FILE = path.join(os.homedir(), '.claudeos', 'dashboard-runtime.json');
+let PORT = PREFERRED_PORT; // actual bound port (may differ when preferred was busy)
 const CRON_REG     = path.join(os.homedir(), '.claudeos', 'cron-registry.json');
 const PROJECT_REG  = process.env.AI_STARTUP_PROJECT_REGISTRY || path.join(os.homedir(), '.claudeos', 'registered-projects.json');
 const SESSIONS_DIR = path.join(os.homedir(), '.claudeos', 'sessions');
@@ -179,6 +189,25 @@ function checkBasicAuth(req, res) {
     'Content-Type': 'text/plain; charset=utf-8',
   });
   res.end('401 Unauthorized — Set DASHBOARD_PASSWORD env var or config.json dashboardAuth to enable access.');
+  return false;
+}
+
+/** True when the request originates from the local machine (IPv4/IPv6 loopback). */
+function isLoopbackRequest(req) {
+  const addr = req.socket?.remoteAddress || '';
+  return addr === '127.0.0.1' || addr === '::1' || addr.startsWith('::ffff:127.');
+}
+
+/** Guard for state-changing endpoints (job execution, AutoRun CRUD).
+ *  With auth disabled the dashboard binds 0.0.0.0 for LAN viewing, but only
+ *  loopback clients may mutate; remote management requires DASHBOARD_PASSWORD
+ *  (or config.json dashboardAuth). With auth enabled, Basic Auth governs all. */
+function checkMutationAllowed(req, res) {
+  if (AUTH_PASS || isLoopbackRequest(req)) return true;
+  res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify({
+    error: 'Remote mutation disabled: set DASHBOARD_PASSWORD (or config.json dashboardAuth) to manage from the LAN.',
+  }));
   return false;
 }
 
@@ -1651,7 +1680,10 @@ if (require.main === module) {
       }
       return;
     }
-    if (req.method === 'POST' && pn === '/api/jobs') { return handleJobRun(req, res); }
+    if (req.method === 'POST' && pn === '/api/jobs') {
+      if (!checkMutationAllowed(req, res)) return;
+      return handleJobRun(req, res);
+    }
     if (pn === '/api/jobs/status')                    { return handleJobStatus(res); }
     // Per-project GitHub CI data — GET /api/project-ci?repo=Kensan196948G/RepoName
     if (pn === '/api/project-ci' && req.method === 'GET') {
@@ -1686,14 +1718,22 @@ if (require.main === module) {
     if (pn === '/api/supervisor/status')              { return handleSupervisorStatus(res); }
     // AutoRun registry CRUD. /api/cron remains as a compatibility alias.
     if (req.method === 'GET'    && pn === '/api/autorun') { return handleCronList(res); }
-    if (req.method === 'POST'   && pn === '/api/autorun') { return handleCronRegister(req, res); }
+    if (req.method === 'POST'   && pn === '/api/autorun') {
+      if (!checkMutationAllowed(req, res)) return;
+      return handleCronRegister(req, res);
+    }
     if (req.method === 'DELETE' && pn.startsWith('/api/autorun/')) {
+      if (!checkMutationAllowed(req, res)) return;
       const id = pn.replace('/api/autorun/', '');
       return handleCronDelete(req, res, id);
     }
     if (req.method === 'GET'    && pn === '/api/cron') { return handleCronList(res); }
-    if (req.method === 'POST'   && pn === '/api/cron') { return handleCronRegister(req, res); }
+    if (req.method === 'POST'   && pn === '/api/cron') {
+      if (!checkMutationAllowed(req, res)) return;
+      return handleCronRegister(req, res);
+    }
     if (req.method === 'DELETE' && pn.startsWith('/api/cron/')) {
+      if (!checkMutationAllowed(req, res)) return;
       const id = pn.replace('/api/cron/', '');
       return handleCronDelete(req, res, id);
     }
@@ -1702,23 +1742,70 @@ if (require.main === module) {
     res.end(buildHtml());
   });
 
-  server.listen(PORT, '0.0.0.0', () => {
-    const lanIp = Object.values(os.networkInterfaces()).flat()
+  function detectLanIp() {
+    return Object.values(os.networkInterfaces()).flat()
       .find(i => i && i.family === 'IPv4' && !i.internal)?.address || '(unavailable)';
-    console.log(`[Dashboard] Local: http://localhost:${PORT}`);
-    console.log(`[Dashboard] LAN:   http://${lanIp}:${PORT}`);
+  }
+
+  // Persist the actual bound port/IP so supervisor-daemon and other tools can
+  // discover the effective URL even after an automatic port fallback.
+  function writeRuntimeInfo(boundPort, lanIp) {
+    try {
+      fs.mkdirSync(path.dirname(RUNTIME_INFO_FILE), { recursive: true });
+      const tmp = RUNTIME_INFO_FILE + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify({
+        port: boundPort,
+        preferredPort: PREFERRED_PORT,
+        lanIp,
+        localUrl: `http://localhost:${boundPort}`,
+        lanUrl: `http://${lanIp}:${boundPort}`,
+        missionControlUrl: `http://${lanIp}:${boundPort}/mission-control`,
+        healthUrl: `http://localhost:${boundPort}/api/health`,
+        pid: process.pid,
+        authEnabled: !!AUTH_PASS,
+        startedAt: new Date().toISOString(),
+      }, null, 2), 'utf8');
+      fs.renameSync(tmp, RUNTIME_INFO_FILE);  // atomic replace
+    } catch (e) { console.warn('[Dashboard] runtime info write failed:', e.message); }
+  }
+
+  function announce(boundPort) {
+    const lanIp = detectLanIp();
+    if (boundPort !== PREFERRED_PORT) {
+      console.log(`[Dashboard] Preferred port ${PREFERRED_PORT} was busy — auto-selected ${boundPort}`);
+    }
+    console.log(`[Dashboard] Local: http://localhost:${boundPort}`);
+    console.log(`[Dashboard] LAN:   http://${lanIp}:${boundPort}`);
+    console.log(`[Dashboard] Auth:  ${AUTH_PASS ? 'Basic Auth enabled' : 'disabled — LAN is read-only (mutations loopback-only)'}`);
     console.log(`[Dashboard] PROJECTS_DIR: ${PROJECTS_DIR}`);
     console.log(`[Dashboard] REGISTERED_PROJECTS: ${readProjectRegistry().length} entries`);
     console.log(`[Dashboard] GITHUB_REGISTRY: ${Object.keys(GITHUB_REGISTRY).length} entries`);
     console.log(`[Dashboard] CRON_REG: ${CRON_REG}`);
     console.log('[Dashboard] Ctrl+C to stop');
+    writeRuntimeInfo(boundPort, lanIp);
     watchFiles();
-  });
+  }
 
-  server.on('error', e => {
-    if (e.code === 'EADDRINUSE') {
-      console.error(`[Dashboard] Port ${PORT} is already in use. Try: node serve-dashboard.js ${PORT + 1}`);
-    } else { console.error('[Dashboard] Error:', e.message); }
-    process.exit(1);
-  });
+  function startListening(port, attemptsLeft) {
+    server.once('error', e => {
+      if (e.code === 'EADDRINUSE' && attemptsLeft > 0) {
+        console.warn(`[Dashboard] Port ${port} is in use — trying ${port + 1}`);
+        startListening(port + 1, attemptsLeft - 1);
+      } else if (e.code === 'EADDRINUSE') {
+        console.error(`[Dashboard] No free port found in ${PREFERRED_PORT}-${PREFERRED_PORT + PORT_SCAN_MAX}. Specify one with --port <n>.`);
+        process.exit(1);
+      } else {
+        console.error('[Dashboard] Error:', e.message);
+        process.exit(1);
+      }
+    });
+    server.listen(port, '0.0.0.0', () => {
+      PORT = port;
+      server.removeAllListeners('error');
+      server.on('error', e => { console.error('[Dashboard] Error:', e.message); process.exit(1); });
+      announce(port);
+    });
+  }
+
+  startListening(PREFERRED_PORT, PORT_SCAN_MAX);
 }
