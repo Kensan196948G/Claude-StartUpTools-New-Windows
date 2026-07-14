@@ -1753,13 +1753,18 @@ if (require.main === module) {
     try {
       fs.mkdirSync(path.dirname(RUNTIME_INFO_FILE), { recursive: true });
       const tmp = RUNTIME_INFO_FILE + '.tmp';
+      const lanOk = lanIp && lanIp !== '(unavailable)';
+      // missionControlUrl is the canonical LOCAL url (always reachable from the
+      // same machine); LAN variants are separate and null when detection fails,
+      // so local consumers never inherit an unreachable or malformed endpoint.
       fs.writeFileSync(tmp, JSON.stringify({
         port: boundPort,
         preferredPort: PREFERRED_PORT,
-        lanIp,
+        lanIp: lanOk ? lanIp : null,
         localUrl: `http://localhost:${boundPort}`,
-        lanUrl: `http://${lanIp}:${boundPort}`,
-        missionControlUrl: `http://${lanIp}:${boundPort}/mission-control`,
+        lanUrl: lanOk ? `http://${lanIp}:${boundPort}` : null,
+        missionControlUrl: `http://localhost:${boundPort}/mission-control`,
+        lanMissionControlUrl: lanOk ? `http://${lanIp}:${boundPort}/mission-control` : null,
         healthUrl: `http://localhost:${boundPort}/api/health`,
         pid: process.pid,
         authEnabled: !!AUTH_PASS,
