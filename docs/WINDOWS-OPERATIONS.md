@@ -104,6 +104,30 @@ npm run start:dashboard
 http://127.0.0.1:3737/mission-control
 ```
 
+### Port and address resolution (v4.3.0)
+
+The dashboard binds `0.0.0.0` and auto-detects the LAN IPv4 for display. The
+port is resolved as `--port <n>` / bare numeric arg → `DASHBOARD_PORT` env →
+default `3737`; when the preferred port is busy, startup scans upward
+(max +20) instead of exiting. The effective endpoint is written atomically to:
+
+```text
+%USERPROFILE%\.claudeos\dashboard-runtime.json
+  { port, preferredPort, lanIp, localUrl, lanUrl,
+    missionControlUrl, healthUrl, pid, authEnabled, startedAt }
+```
+
+`supervisor-daemon.js` reads this file (`runtimeHealthFile` in
+`config/processes.json`) so health checks follow the actually-bound port
+after a fallback.
+
+### Access control
+
+| State | GET (viewing) | POST/DELETE (jobs, AutoRun CRUD) |
+|---|---|---|
+| `DASHBOARD_PASSWORD` / `dashboardAuth` set | Basic Auth | Basic Auth (SSE uses short-lived tokens) |
+| Auth disabled (default) | Allowed from LAN | Loopback only — LAN clients receive 403 |
+
 Windows release checks:
 
 | Area | Visible check |
