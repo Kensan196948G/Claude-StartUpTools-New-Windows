@@ -125,7 +125,8 @@ function Assert-LauncherToolAvailable {
 
     $answer = Read-Host "今すぐインストールしますか？ [y/N]"
     if ($answer -match '^[yY]') {
-        $installParts = $InstallCommand -split '\s+' | Where-Object { $_ }
+        # StrictMode 下では単一要素の .Count/[index] が失敗するため常に配列化する
+        $installParts = @($InstallCommand -split '\s+' | Where-Object { $_ })
         & $installParts[0] ($installParts[1..($installParts.Count - 1)])
         return (Test-LauncherCommand -Command $Command)
     }
@@ -226,9 +227,10 @@ function Resolve-LauncherProject {
     $dirs = $null
 
     if (Test-Path $projectsRoot) {
-        $dirs = Get-ChildItem -Path $projectsRoot -Directory | Sort-Object Name
+        # StrictMode 下では単一要素の .Count/[index] が失敗するため常に配列化する
+        $dirs = @(Get-ChildItem -Path $projectsRoot -Directory | Sort-Object Name)
         if ($Config.localExcludes) {
-            $dirs = $dirs | Where-Object { $_.Name -notin $Config.localExcludes }
+            $dirs = @($dirs | Where-Object { $_.Name -notin $Config.localExcludes })
         }
     }
     else {
