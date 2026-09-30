@@ -21,9 +21,11 @@ jobs:
       - name: Check if today is 1st of a quarter month
         id: quarter_check
         run: |
-          MONTH=$(date -u +%m)
-          DAY=$(date -u +%d)
-          YEAR=$(date -u +%Y)
+          # cron は 18:00 UTC（= JST 翌日 03:00）に起動するため、JST で日付判定する。
+          # UTC で判定すると常に 2/5/8/11 月末日となり、四半期ジョブが一度も実行されなかった。
+          MONTH=$(TZ=Asia/Tokyo date +%m)
+          DAY=$(TZ=Asia/Tokyo date +%d)
+          YEAR=$(TZ=Asia/Tokyo date +%Y)
           QUARTER="Q?"
           IS_QUARTER="false"
           if [ "$DAY" = "01" ]; then
@@ -60,11 +62,15 @@ jobs:
             fi
           done
 
-      - name: Check deprecated items in state.json
+      # state.json は .gitignore 対象のランタイム状態のため CI には存在しない。
+      # 存在しない場合はコミット済みテンプレート state.json.example を読む。
+      - name: Check deprecated items in state.json (fallback to state.json.example)
         run: |
           node -e "
           const fs = require('fs');
-          const data = JSON.parse(fs.readFileSync('state.json','utf8'));
+          const file = fs.existsSync('state.json') ? 'state.json' : 'state.json.example';
+          console.log('source:', file);
+          const data = JSON.parse(fs.readFileSync(file,'utf8'));
           const candidates = data.frontier?.last_deprecation_candidates ?? [];
           const lowUsage = data.frontier?.last_low_usage_items ?? [];
           console.log('=== Deprecation Candidates ===');
